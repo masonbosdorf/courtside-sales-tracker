@@ -8,7 +8,12 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<!-- iPad: "Add to Home Screen" launches fullscreen (no Safari chrome) for a clean kiosk -->
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Sales Tracker" />
 <title>CourtSide · Retail Sales Tracker (mockup)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -39,7 +44,7 @@ body{
   -webkit-font-smoothing:antialiased;
 }
 /* fixed 1920×1080 canvas, scaled uniformly to any screen so proportions never shift */
-#stage{position:fixed;top:0;left:0;width:1920px;height:1080px;container-type:size;display:flex;flex-direction:column;transform-origin:top left;overflow:hidden;will-change:transform;cursor:pointer;}
+#stage{position:fixed;top:0;left:0;width:1920px;height:1080px;container-type:size;display:flex;flex-direction:column;transform-origin:top left;overflow:hidden;will-change:transform;cursor:pointer;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;}
 .display{font-family:"Archivo Black",sans-serif;letter-spacing:-0.02em;}
 
 /* ===== sliding view rotation (kiosk) — footer stays fixed below ===== */
@@ -125,6 +130,14 @@ body{
 @keyframes hgrow{from{transform:scaleX(0);}}
 .sbar-sub{display:flex;gap:clamp(10px,1.1cqw,18px);font-size:clamp(9.5px,0.74cqw,13px);color:var(--faint);}
 .sbar-sub b{color:var(--muted);font-weight:600;}
+/* compact mode — long rosters (e.g. the weekly view): single-line rows, no per-person sub-stats,
+   smaller name/value/bar so many rows fit without the rows overlapping each other */
+.slist.compact .sbar{gap:clamp(2px,0.4cqh,5px);padding:clamp(1px,0.3cqh,4px) 0;}
+.slist.compact .sbar-name{font-size:clamp(10px,0.98cqw,17px);}
+.slist.compact .sbar-rk{font-size:clamp(9px,0.82cqw,14px);}
+.slist.compact .sbar-val{font-size:clamp(12px,1.2cqw,21px);}
+.slist.compact .sbar-bar{height:clamp(4px,0.6cqh,8px);}
+.sbar-u{font-family:"Space Grotesk";font-weight:600;font-size:0.5em;color:var(--faint);margin-left:0.5em;letter-spacing:0;}
 .sbar.lead .sbar-name,.sbar.lead .sbar-val{color:var(--signal);}
 .sbar.lead .sbar-fl{background:linear-gradient(90deg,var(--gold),#ffe9a8);box-shadow:0 0 14px rgba(255,214,107,0.4);}
 .sbar.lead .sbar-rk{color:var(--gold);}
@@ -328,17 +341,24 @@ function setDelta(elId,val,lbl,unit){
 }
 function renderStaff(elId,staff){
   const wrap=$(elId); if(!wrap)return; wrap.innerHTML='';
+  const compact = staff.length>12;                 // long rosters (week) → single-line rows
+  wrap.classList.toggle('compact', compact);
   const max=Math.max(...staff.map(s=>s.sales),1);
   staff.forEach((s,i)=>{
     const atv=s.orders?s.sales/s.orders:0, upt=s.orders?s.units/s.orders:0;
     const row=document.createElement('div'); row.className='sbar'+(i===0?' lead':'');
-    row.innerHTML=
-      '<div class="sbar-top"><div class="sbar-nm"><span class="sbar-rk">'+(i+1)+'</span>'+
-      '<span class="sbar-name">'+s.name+(i===0?'<span class="crown">👑</span>':'')+'</span></div>'+
-      '<span class="sbar-val">'+money0(s.sales)+'</span></div>'+
-      '<div class="sbar-bar"><div class="sbar-fl" style="--w:'+(s.sales/max).toFixed(4)+'"></div></div>'+
-      '<div class="sbar-sub"><span><b>'+fmt(s.units)+'</b> units</span><span><b>'+fmt(s.orders)+'</b> orders</span>'+
-      '<span><b>'+money0(atv)+'</b> ATV</span><span><b>'+upt.toFixed(1)+'</b> UPT</span></div>';
+    const head='<div class="sbar-top"><div class="sbar-nm"><span class="sbar-rk">'+(i+1)+'</span>'+
+      '<span class="sbar-name">'+s.name+(i===0?'<span class="crown">👑</span>':'')+'</span></div>';
+    const bar='<div class="sbar-bar"><div class="sbar-fl" style="--w:'+(s.sales/max).toFixed(4)+'"></div></div>';
+    if(compact){
+      row.innerHTML=head+
+        '<span class="sbar-val">'+money0(s.sales)+'<span class="sbar-u">'+fmt(s.units)+'u · '+fmt(s.orders)+'o</span></span></div>'+bar;
+    }else{
+      row.innerHTML=head+
+        '<span class="sbar-val">'+money0(s.sales)+'</span></div>'+bar+
+        '<div class="sbar-sub"><span><b>'+fmt(s.units)+'</b> units</span><span><b>'+fmt(s.orders)+'</b> orders</span>'+
+        '<span><b>'+money0(atv)+'</b> ATV</span><span><b>'+upt.toFixed(1)+'</b> UPT</span></div>';
+    }
     wrap.appendChild(row);
   });
 }
@@ -418,34 +438,55 @@ loadSeed();
 setInterval(loadSeed, 60000);
 
 /* ===== kiosk rotation — slide TODAY ↔ WEEK every 15s, ← prev · → / space / click next ===== */
-const ROTATE_MS=15000, VIEW_COUNT=2; let viewIdx=0, rotateTimer=null;
+const ROTATE_MS=15000, VIEW_COUNT=2; let viewIdx=0, rotateTimer=null, armAt=0, remain=ROTATE_MS, paused=false;
 function showView(i){
   viewIdx=((i%VIEW_COUNT)+VIEW_COUNT)%VIEW_COUNT;
   const t=$('track'); if(t) t.style.transform='translateX(-'+(viewIdx*50)+'%)';
   $('nd-0').classList.toggle('on',viewIdx===0);
   $('nd-1').classList.toggle('on',viewIdx===1);
 }
-function resetBar(){
+// drive the depleting countdown bar from `fromScale` (1=full) down to 0 over `ms`
+function runBar(fromScale, ms){
   const f=$('rotate-fill'); if(!f) return;
-  f.style.transition='none'; f.style.transform='scaleX(1)';
-  void f.offsetWidth;
-  f.style.transition='transform '+(ROTATE_MS/1000)+'s linear';
-  f.style.transform='scaleX(0)';
+  f.style.transition='none'; f.style.transform='scaleX('+fromScale+')'; void f.offsetWidth;
+  f.style.transition='transform '+(ms/1000)+'s linear'; f.style.transform='scaleX(0)';
 }
-function armTimer(){ clearTimeout(rotateTimer); resetBar(); rotateTimer=setTimeout(()=>go(1), ROTATE_MS); }
-function go(dir){ showView(viewIdx+dir); armTimer(); }
-armTimer();
+function currentBarScale(){
+  const f=$('rotate-fill'); if(!f) return 1;
+  const m=getComputedStyle(f).transform.match(/matrix\(([^)]+)\)/);
+  return m ? Math.max(0, Math.min(1, parseFloat(m[1].split(',')[0]))) : 1;
+}
+function arm(ms, fromScale){ clearTimeout(rotateTimer); paused=false; remain=ms; armAt=Date.now();
+  runBar(fromScale==null?1:fromScale, ms); rotateTimer=setTimeout(()=>go(1), ms); }
+function go(dir){ showView(viewIdx+dir); arm(ROTATE_MS, 1); }      // advance + fresh 15s
+function pauseRotation(){ if(paused) return; paused=true; clearTimeout(rotateTimer);
+  remain=Math.max(0, remain-(Date.now()-armAt));                  // freeze remaining time
+  const s=currentBarScale(), f=$('rotate-fill'); if(f){ f.style.transition='none'; f.style.transform='scaleX('+s+')'; } }
+function resumeRotation(){ if(!paused) return; paused=false; armAt=Date.now();
+  runBar(currentBarScale(), remain); clearTimeout(rotateTimer); rotateTimer=setTimeout(()=>go(1), remain); }   // resume where it stopped
+arm(ROTATE_MS, 1);
 addEventListener('keydown', e=>{
   if(e.key==='ArrowLeft'){ e.preventDefault(); go(-1); }
   else if(e.key==='ArrowRight'||e.code==='Space'||e.key===' '){ e.preventDefault(); go(1); }
 });
-$('stage').addEventListener('click', e=>{
-  // click left third = back, otherwise forward
-  const x=e.clientX, mid=innerWidth*0.33;
-  go(x<mid ? -1 : 1);
+/* Touch / mouse (iPad-friendly, Pointer Events):
+   • quick TAP anywhere  → change page (tap left third = back, elsewhere = forward)
+   • PRESS-AND-HOLD      → pause the 15s timer while held; release resumes from where it paused */
+const HOLD_MS=240; let downX=0, holdTimer=null, didHold=false;
+const stage=$('stage');
+stage.addEventListener('pointerdown', e=>{
+  try{ stage.setPointerCapture(e.pointerId); }catch(_){}
+  downX=e.clientX; didHold=false;
+  holdTimer=setTimeout(()=>{ didHold=true; pauseRotation(); }, HOLD_MS);   // held long enough → pause
 });
+function endPointer(){ clearTimeout(holdTimer);
+  if(didHold){ resumeRotation(); didHold=false; return; }                 // was a hold → resume, don't navigate
+  go(downX < innerWidth*0.33 ? -1 : 1);                                   // was a tap → change page
+}
+stage.addEventListener('pointerup', endPointer);
+stage.addEventListener('pointercancel', ()=>{ clearTimeout(holdTimer); if(didHold){ resumeRotation(); didHold=false; } });
 // deep-link: open …#week to land on the weekly view
-if(location.hash==='#week'){ showView(1); armTimer(); }
+if(location.hash==='#week'){ showView(1); arm(ROTATE_MS,1); }
 
 /* ===== live Melbourne clock ===== */
 function tickClock(){
