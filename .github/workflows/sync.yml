@@ -1,0 +1,49 @@
+name: sales-sync
+
+# Cloud data refresh for the retail sales tracker — runs the pure-node Shopify fetcher in
+# GitHub's infrastructure (no laptop, no Claude). Triggered every ~5-10 min by cron-job.org
+# hitting the workflow_dispatch API (reliable). GitHub's own `schedule:` is intentionally NOT
+# used — it fires unreliably and double-fires alongside cron-job.org, racing on the git push.
+
+on:
+  workflow_dispatch: {}        # fired by cron-job.org + the manual "Run workflow" button
+
+permissions:
+  contents: write              # allow committing the refreshed seed back
+
+concurrency:
+  group: sales-sync            # never overlap runs
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Sales fetch (Shopify POS → sales-seed.js)
+        env:
+          FS_SHOPIFY_DOMAIN:        ${{ secrets.FS_SHOPIFY_DOMAIN }}
+          FS_SHOPIFY_CLIENT_ID:     ${{ secrets.FS_SHOPIFY_CLIENT_ID }}
+          FS_SHOPIFY_CLIENT_SECRET: ${{ secrets.FS_SHOPIFY_CLIENT_SECRET }}
+        run: node sales-fetch.js "$GITHUB_WORKSPACE/sales-seed.js"
+
+      - name: Commit & push if the data changed
+        run: |
+          git config user.name  "sales-bot"
+          git config user.email "sales-bot@users.noreply.github.com"
+          git add sales-seed.js
+          if git diff --cached --quiet; then
+            echo "no data change"
+          else
+            git commit -m "data $(TZ=Australia/Melbourne date +'%d-%m %H:%M') [cloud]"
+            # resilient publish: if another run pushed first, rebase and retry (no race failures)
+            for i in 1 2 3; do
+              git pull --rebase --autostash -q origin main && git push && break
+              echo "push race — retrying ($i)"; sleep 2
+            done
+          fi
