@@ -102,6 +102,60 @@ function aggregate(posOrders, { paceMode, scope, sub, deltaLbl, salesTarget, pre
   };
 }
 
+/* ---------- loyalty (Okendo CourtPass) — native Shopify, no DB ----------
+   Enrolled = customer segment metafields.app--1576377--loyalty.status='Enrolled'.
+   Signup-date proxy = customer_added_date (Melbourne, shop tz). Employee = staff on the POS
+   order within 15 min of signup; web/no-order/CourtSide-Default → Online/unattributed. */
+async function loyalty(k) {
+  const SEG = "metafields.app--1576377--loyalty.status = 'Enrolled'";
+  const cnt = async clause => {
+    const q = clause ? `${SEG} AND ${clause}` : SEG;
+    const d = await gql(`query($q:String!){ customerSegmentMembers(first:1, query:$q){ totalCount } }`, { q });
+    return d.customerSegmentMembers.totalCount;
+  };
+  const total           = await cnt(null);
+  const today           = await cnt(`customer_added_date >= ${k.todayKey}`);
+  const thisWeek        = await cnt(`customer_added_date >= ${k.monKey}`);
+  const thisMonth       = await cnt(`customer_added_date >= ${k.monthStartKey}`);
+  const lastMonthToDate = await cnt(`customer_added_date >= ${k.lastMonthStartKey} AND customer_added_date < ${k.lastMonthCutoffKey}`);
+
+  // this-month members → resolve each to first order for attribution + daily trend
+  let after = null, more = true; const ids = [];
+  while (more) {
+    const d = await gql(`query($q:String!,$a:String){ customerSegmentMembers(first:250, after:$a, query:$q){ edges{ node{ id } } pageInfo{ hasNextPage endCursor } } }`,
+      { q: `${SEG} AND customer_added_date >= ${k.monthStartKey}`, a: after });
+    ids.push(...d.customerSegmentMembers.edges.map(e => e.node.id.replace('CustomerSegmentMember', 'Customer')));
+    more = d.customerSegmentMembers.pageInfo.hasNextPage; after = d.customerSegmentMembers.pageInfo.endCursor;
+  }
+  const staff = {}, buckets = {}; let online = 0;
+  for (let i = 0; i < ids.length; i += 50) {
+    const d = await gql(`query($ids:[ID!]!){ nodes(ids:$ids){ ... on Customer { createdAt orders(first:1, sortKey:CREATED_AT){ nodes{ createdAt sourceName events(first:6){ edges{ node{ message } } } } } } } }`,
+      { ids: ids.slice(i, i + 50) });
+    for (const nd of (d.nodes || [])) {
+      if (!nd) continue;
+      const created = new Date(nd.createdAt).getTime();
+      const o = (nd.orders?.nodes || [])[0];
+      let emp = null;
+      if (o && o.sourceName === 'pos') {
+        const within = Math.abs(new Date(o.createdAt).getTime() - created) <= 900000;   // 15 min
+        const pm = (o.events?.edges || []).map(e => e.node.message).find(m => POSrx.test(m));
+        if (within && pm) { const nm = pm.replace(/ processed this order.*/, '').trim(); if (nm && nm !== 'CourtSide Default') emp = nm; }
+      }
+      if (emp) staff[emp] = (staff[emp] || 0) + 1; else online++;
+      const dk = melDayKey(nd.createdAt); buckets[dk] = (buckets[dk] || 0) + 1;
+    }
+  }
+  const leaderboard = Object.entries(staff).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  const inStore = leaderboard.reduce((a, b) => a + b.count, 0);
+  const dkeys = Object.keys(buckets).sort();
+  const trend = {
+    labels: dkeys.map(d => String(parseInt(d.slice(-2), 10))),
+    values: dkeys.map(d => buckets[d]),
+    peak: dkeys.length ? parseInt(dkeys.reduce((a, b) => buckets[b] > buckets[a] ? b : a, dkeys[0]).slice(-2), 10) + ' ' + k.monthAbbr : '',
+  };
+  return { total, today, thisWeek, thisMonth, lastMonthToDate, inStore, online, leaderboard, trend };
+}
+
 async function main() {
   const now = new Date();
   const p = melParts(now), off = melOffset(now), nowHM = `${p.hour}:${p.minute}`;
@@ -111,6 +165,14 @@ async function main() {
   const todayKey = keyOfAnchor(anchor), tomorrowKey = keyOfAnchor(addDays(anchor, 1));
   const monKey   = keyOfAnchor(addDays(anchor, -back));
   const lwTodayKey = keyOfAnchor(addDays(anchor, -7)), lwMonKey = keyOfAnchor(addDays(anchor, -7 - back));
+  // month keys for loyalty (this month-to-date vs same period last month)
+  const monthStartKey = `${p.year}-${p.month}-01`;
+  const lmLast = addDays(new Date(Date.UTC(+p.year, +p.month - 1, 1, 12)), -1);   // last day of previous month
+  const lmYear = lmLast.getUTCFullYear(), lmMonth = String(lmLast.getUTCMonth() + 1).padStart(2, '0');
+  const lastMonthStartKey = `${lmYear}-${lmMonth}-01`;
+  const daysInLm = new Date(Date.UTC(lmYear, lmLast.getUTCMonth() + 1, 0)).getUTCDate();
+  const lastMonthCutoffKey = `${lmYear}-${lmMonth}-${String(Math.min(+p.day + 1, daysInLm + 1)).padStart(2, '0')}`;
+  const monthAbbr = new Intl.DateTimeFormat('en-AU', { timeZone: TZ, month: 'short' }).format(now);
 
   // THIS WEEK (Mon 00:00 → end of today): full detail for staff + brands + pace
   const SEL_FULL = `name createdAt sourceName currentSubtotalLineItemsQuantity
@@ -157,9 +219,16 @@ async function main() {
   const fo = {}; for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' }).formatToParts(now)) fo[x.type] = x.value;
   const asOf = `${fo.year}-${fo.month}-${fo.day}T${fo.hour}:${fo.minute}:${fo.second}${off}`;
 
-  const seed = { asOf, day, week };
+  // loyalty is OPTIONAL — needs the app's read_customers scope. If denied/failing, skip it
+  // (write loyalty:null) so the sales dashboard still updates. The 3rd screen activates by itself
+  // once the scope is granted and real data lands.
+  let loy = null;
+  try { loy = await loyalty({ todayKey, monKey, monthStartKey, lastMonthStartKey, lastMonthCutoffKey, monthAbbr }); }
+  catch (e) { console.error('loyalty skipped (' + e.message.slice(0, 120) + ')'); }
+
+  const seed = { asOf, day, week, loyalty: loy };
   const header = '/* sales-seed.js — DATA ONLY. Refreshed by GitHub Actions (cloud sync). Real Shopify POS data. */\n';
   fs.writeFileSync(SEED_PATH, header + 'window.SALES_SEED = ' + JSON.stringify(seed) + ';\n');
-  console.log(`sales-fetch OK  today ${day.scope}: $${day.totalSales} / ${day.posOrders} orders / ${day.units}u  (week $${week.totalSales} / ${week.posOrders})  asOf ${asOf}`);
+  console.log(`sales-fetch OK  today ${day.scope}: $${day.totalSales} / ${day.posOrders} orders / ${day.units}u  (week $${week.totalSales} / ${week.posOrders})  loyalty ${loy ? loy.total + ' members, ' + loy.today + ' today, ' + loy.thisMonth + ' this month' : 'SKIPPED (no read_customers scope)'}  asOf ${asOf}`);
 }
 main().catch(e => { console.error('sales-fetch FAILED: ' + e.message); process.exit(1); });

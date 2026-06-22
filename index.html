@@ -53,6 +53,16 @@ body{
 .views{flex:1;min-height:0;position:relative;overflow:hidden;}
 .track{display:flex;width:200%;height:100%;transform:translateX(0);transition:transform 0.75s cubic-bezier(0.7,0,0.2,1);will-change:transform;}
 .view{flex:0 0 50%;width:50%;height:100%;min-width:0;display:flex;flex-direction:column;}
+/* loyalty (3rd) screen — gold accent + source-split bar */
+.loy-hero{border:1px solid rgba(255,214,107,0.45)!important;background:radial-gradient(120% 140% at 100% 0%,rgba(255,214,107,0.16) 0%,rgba(255,214,107,0.02) 45%,transparent 70%),var(--panel)!important;}
+.loy-hero .live-pill{color:var(--gold)!important;border-color:rgba(255,214,107,0.5)!important;}
+.loy-hero .live-pill .dot{background:var(--gold)!important;box-shadow:0 0 8px var(--gold)!important;}
+#view-l .bar.peak{background:var(--gold)!important;box-shadow:0 0 10px rgba(255,214,107,0.4)!important;}
+#view-l .sbar.lead .sbar-fl{background:linear-gradient(90deg,var(--gold),#ffe9a8)!important;}
+.lsplit{height:clamp(12px,1.4cqh,20px);background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;display:flex;margin:clamp(8px,1.2cqh,16px) 0;}
+.lsplit .a{background:var(--up);height:100%;} .lsplit .b{background:rgba(255,255,255,0.22);height:100%;}
+.lsrcrow{display:flex;justify-content:space-between;font-size:clamp(10px,0.82cqw,15px);color:var(--muted);}
+.lsrcrow b{font-family:"Archivo Black",sans-serif;font-weight:400;color:var(--signal);}
 
 /* ===== layout ===== */
 .dash{
@@ -206,6 +216,7 @@ body{
 <div class="views"><div class="track" id="track">
   <section class="view" id="view-d"></section>
   <section class="view" id="view-w"></section>
+  <section class="view" id="view-l" style="display:none;"></section>
 </div></div>
 
 <!-- ===== FOOTER ===== -->
@@ -218,7 +229,7 @@ body{
     </div>
   </div>
   <div class="foot-mid">
-    <div class="dot-nav"><span class="nav-dot on" id="nd-0"></span><span class="nav-dot" id="nd-1"></span></div>
+    <div class="dot-nav"><span class="nav-dot on" id="nd-0"></span><span class="nav-dot" id="nd-1"></span><span class="nav-dot" id="nd-2" style="display:none"></span></div>
     <span class="hint">← → · click · auto 15s</span>
   </div>
   <div class="foot-right">
@@ -328,6 +339,7 @@ function viewHTML(p){
 }
 $('view-d').innerHTML=viewHTML('d');
 $('view-w').innerHTML=viewHTML('w');
+$('view-l').innerHTML=viewLoyaltyHTML();
 
 /* ===== render a view from its data slice ===== */
 const RING_C=2*Math.PI*52; // ≈326.7
@@ -421,9 +433,108 @@ function renderView(p,d){
   renderBrands(p+'-brands', d.brands);
   renderPace(p+'-pace', p+'-pace-x', d.pace);
 }
+/* ===== LOYALTY (CourtPass) — 3rd screen ===== */
+function viewLoyaltyHTML(){ return `
+  <div class="dash">
+    <div class="col-left">
+      <section class="panel">
+        <div class="ph"><h2>Signups</h2><span class="scope">CourtPass · <span id="loy-mname">—</span></span></div>
+        <div class="stat-wrap">
+          <div class="stat"><div class="num" id="loy-month">—</div><div class="lbl">This month</div><div class="delta" id="loy-month-d"></div></div>
+          <div class="divider"></div>
+          <div class="stat"><div class="num" id="loy-week">—</div><div class="lbl">This week · since Mon</div></div>
+          <div class="divider"></div>
+          <div class="stat"><div class="num" id="loy-today">—</div><div class="lbl">Today</div></div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="ph"><h2>Signup source</h2><span class="sub">this month</span></div>
+        <div class="stat-wrap" style="justify-content:center;">
+          <div class="stat"><div class="num" id="loy-instore" style="color:var(--up)">—</div><div class="lbl">In-store · staff-assisted</div></div>
+          <div class="lsplit"><div class="a" id="loy-split-a"></div><div class="b" id="loy-split-b"></div></div>
+          <div class="lsrcrow"><span><b id="loy-instore2">—</b> in-store</span><span><b id="loy-online">—</b> online</span></div>
+          <div class="lbl" style="text-align:center;margin-top:8px;" id="loy-pct">—</div>
+        </div>
+      </section>
+    </div>
+    <section class="panel col-mid">
+      <div class="ph"><h2>Signups by team member</h2><span class="sub">in-store · ranked · <span id="loy-mname2">—</span></span></div>
+      <div class="slist" id="loy-leaders"></div>
+    </section>
+    <div class="col-right">
+      <section class="panel hero loy-hero">
+        <div class="live-pill"><span class="dot"></span>CourtPass</div>
+        <div class="hrow">
+          <div class="hmain"><div class="big" id="loy-total">—</div><div class="lbl">total CourtPass members</div><div class="hdelta up" id="loy-total-sub"></div></div>
+          <div class="hside"><div class="big2" id="loy-today2">—</div><div class="lbl2">signups today</div></div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="ph"><h2>Daily signups</h2><span class="sub">by day</span></div>
+        <div class="chart"><div class="bars" id="loy-trend"></div><div class="x-axis" id="loy-trend-x"></div></div>
+        <div class="peak-note">Busiest day: <b id="loy-peak">—</b></div>
+      </section>
+    </div>
+  </div>`; }
+function renderLeaders(elId, rows){
+  const wrap=$(elId); if(!wrap)return; wrap.innerHTML='';
+  const compact=rows.length>12; wrap.classList.toggle('compact',compact);
+  const max=Math.max(...rows.map(r=>r.count),1);
+  rows.forEach((r,i)=>{
+    const row=document.createElement('div'); row.className='sbar'+(i===0?' lead':'');
+    const head='<div class="sbar-top"><div class="sbar-nm"><span class="sbar-rk">'+(i+1)+'</span><span class="sbar-name">'+r.name+(i===0?'<span class="crown">👑</span>':'')+'</span></div>';
+    const bar='<div class="sbar-bar"><div class="sbar-fl" style="--w:'+(r.count/max).toFixed(4)+'"></div></div>';
+    row.innerHTML = compact ? head+'<span class="sbar-val">'+r.count+'</span></div>'+bar
+      : head+'<span class="sbar-val">'+r.count+'</span></div>'+bar+'<div class="sbar-sub"><span><b>'+r.count+'</b> signups</span></div>';
+    wrap.appendChild(row);
+  });
+}
+function renderTrend(elId,xId,t){
+  const wrap=$(elId),x=$(xId); if(!wrap)return; wrap.innerHTML=''; if(x)x.innerHTML='';
+  const max=Math.max(...t.values,1), peakV=Math.max(...t.values);
+  (t.values||[]).forEach(v=>{ const b=document.createElement('div'); b.className='bar'+(v===peakV?' peak':''); b.style.height=Math.max(2,(v/max)*100).toFixed(1)+'%'; b.style.transform='none'; b.style.alignSelf='flex-end'; wrap.appendChild(b); });
+  (t.labels||[]).forEach((l,i)=>{ if(i%3===0||i===t.labels.length-1){ const s=document.createElement('span'); s.textContent=l; s.style.position='static'; x&&x.appendChild(s);} });
+}
+function renderLoyalty(d){
+  if(!d) return;
+  const mname = (d.trend && d.trend.peak) ? (d.trend.peak.split(' ')[1]||'') : '';
+  $('loy-month').textContent=fmt(d.thisMonth);
+  const mom=d.thisMonth-d.lastMonthToDate;
+  $('loy-month-d').className='delta '+(mom>0?'up':mom<0?'down':'flat');
+  $('loy-month-d').innerHTML='<span>'+(mom>0?'▲ ':mom<0?'▼ ':'▬ ')+fmt(Math.abs(mom))+'</span><span class="vs">vs same period last month</span>';
+  $('loy-week').textContent=fmt(d.thisWeek);
+  $('loy-today').textContent=fmt(d.today);
+  $('loy-total').textContent=fmt(d.total);
+  $('loy-today2').textContent=fmt(d.today);
+  $('loy-total-sub').innerHTML='<span>▲ '+fmt(d.thisMonth)+'</span><span class="vs">joined this month</span>';
+  const tot=(d.inStore+d.online)||1, pct=Math.round(d.inStore/tot*100);
+  $('loy-instore').textContent=fmt(d.inStore); $('loy-instore2').textContent=fmt(d.inStore); $('loy-online').textContent=fmt(d.online);
+  $('loy-split-a').style.width=pct+'%'; $('loy-split-b').style.width=(100-pct)+'%';
+  $('loy-pct').textContent=pct+'% signed up in-store by staff';
+  $('loy-peak').textContent=(d.trend&&d.trend.peak)||'—';
+  if($('loy-mname')) $('loy-mname').textContent=mname; if($('loy-mname2')) $('loy-mname2').textContent=mname;
+  renderLeaders('loy-leaders', d.leaderboard||[]);
+  renderTrend('loy-trend','loy-trend-x', d.trend||{labels:[],values:[]});
+}
+function syncViews(){
+  const has=!!(window.SALES_SEED && window.SALES_SEED.loyalty && window.SALES_SEED.loyalty.total);
+  VIEW_COUNT = has?3:2;
+  const vl=$('view-l'); if(vl) vl.style.display = has?'flex':'none';
+  const t=$('track'); if(t) t.style.width=(VIEW_COUNT*100)+'%';
+  document.querySelectorAll('#track > .view').forEach(v=>{ v.style.flex='0 0 '+(100/VIEW_COUNT)+'%'; v.style.width=(100/VIEW_COUNT)+'%'; });
+  const nd2=$('nd-2'); if(nd2) nd2.style.display = has?'':'none';
+  if(viewIdx>=VIEW_COUNT) viewIdx=0;
+  showView(viewIdx);
+}
 function renderAll(){
   const S=window.SALES_SEED; if(!S)return;
   renderView('d',S.day); renderView('w',S.week);
+  if(S.loyalty && S.loyalty.total) renderLoyalty(S.loyalty);
+  syncViews();
+  // apply a #week / #loyalty deep-link once, AFTER the seed has set the real VIEW_COUNT
+  if(!window._hashApplied){ window._hashApplied=true; const h=location.hash;
+    if(h==='#week'&&VIEW_COUNT>1){ showView(1); arm(ROTATE_MS,1); }
+    else if(h==='#loyalty'&&VIEW_COUNT>2){ showView(2); arm(ROTATE_MS,1); } }
   const a=$('asof'); if(a&&S.asOf) a.textContent=new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Melbourne',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(S.asOf));
 }
 /* load the data file (cache-busted) and re-poll every 60s so the page picks up each ~5-min cloud sync */
@@ -438,12 +549,13 @@ loadSeed();
 setInterval(loadSeed, 60000);
 
 /* ===== kiosk rotation — slide TODAY ↔ WEEK every 15s, ← prev · → / space / click next ===== */
-const ROTATE_MS=15000, VIEW_COUNT=2; let viewIdx=0, rotateTimer=null, armAt=0, remain=ROTATE_MS, paused=false;
+const ROTATE_MS=15000; let VIEW_COUNT=2, viewIdx=0, rotateTimer=null, armAt=0, remain=ROTATE_MS, paused=false;
 function showView(i){
   viewIdx=((i%VIEW_COUNT)+VIEW_COUNT)%VIEW_COUNT;
-  const t=$('track'); if(t) t.style.transform='translateX(-'+(viewIdx*50)+'%)';
+  const t=$('track'); if(t) t.style.transform='translateX(-'+(viewIdx*(100/VIEW_COUNT))+'%)';
   $('nd-0').classList.toggle('on',viewIdx===0);
   $('nd-1').classList.toggle('on',viewIdx===1);
+  const nd2=$('nd-2'); if(nd2) nd2.classList.toggle('on',viewIdx===2);
 }
 // drive the depleting countdown bar from `fromScale` (1=full) down to 0 over `ms`
 function runBar(fromScale, ms){
@@ -485,8 +597,7 @@ function endPointer(){ clearTimeout(holdTimer);
 }
 stage.addEventListener('pointerup', endPointer);
 stage.addEventListener('pointercancel', ()=>{ clearTimeout(holdTimer); if(didHold){ resumeRotation(); didHold=false; } });
-// deep-link: open …#week to land on the weekly view
-if(location.hash==='#week'){ showView(1); arm(ROTATE_MS,1); }
+// (deep-link #week / #loyalty is applied inside renderAll, once the seed sets the real VIEW_COUNT)
 
 /* ===== live Melbourne clock ===== */
 function tickClock(){
