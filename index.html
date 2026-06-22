@@ -125,6 +125,11 @@ body{
 .goal-num .gd{font-size:clamp(26px,3cqw,50px);}
 .goal-num .gt{font-size:clamp(12px,1.2cqw,20px);color:var(--faint);margin-top:0.2em;}
 .goal-num .gp{font-size:clamp(11px,1cqw,16px);color:var(--up);font-family:"Space Grotesk";font-weight:700;letter-spacing:0.04em;margin-top:0.35em;}
+/* shrink the centre number as it gets longer (e.g. "$469.3k") so it always fits inside the ring */
+.goal-num.l5 .gd{font-size:clamp(22px,2.55cqw,43px);}
+.goal-num.l6 .gd{font-size:clamp(19px,2.2cqw,37px);}
+.goal-num.l7 .gd{font-size:clamp(15px,1.8cqw,30px);}
+.goal-num.l5 .gt,.goal-num.l6 .gt,.goal-num.l7 .gt{font-size:clamp(10px,1.05cqw,17px);}
 
 /* ===== staff sales leaderboard (centre) ===== */
 .slist{flex:1;min-height:0;display:flex;flex-direction:column;justify-content:space-between;}
@@ -424,7 +429,9 @@ function renderView(p,d){
   $(p+'-goal-arc').style.strokeDashoffset=(RING_C*(1-pct)).toFixed(1);
   $(p+'-goal-arc').style.stroke=smashed?'var(--gold)':'var(--up)';
   $(p+'-goal-arc').style.filter=smashed?'drop-shadow(0 0 7px rgba(255,214,107,0.6))':'drop-shadow(0 0 6px rgba(70,224,138,0.45))';
-  $(p+'-goal-done').textContent=kMoney(d.totalSales);
+  { const gd=$(p+'-goal-done'), gn=gd.parentElement; gd.textContent=kMoney(d.totalSales);
+    const n=gd.textContent.length; gn.classList.remove('l5','l6','l7');
+    if(n>=7) gn.classList.add('l7'); else if(n===6) gn.classList.add('l6'); else if(n===5) gn.classList.add('l5'); }
   $(p+'-goal-tot').textContent='/ '+kMoney(d.salesTarget);
   { const gp=$(p+'-goal-pct'); gp.textContent=Math.round(ratio*100)+'% of target'+(smashed?' 🔥':''); gp.style.color=smashed?'var(--gold)':'var(--up)'; }
   $(p+'-goal-sub').textContent=(p==='d'?'today':'this week')+' · '+kMoney(d.salesTarget)+' goal';
