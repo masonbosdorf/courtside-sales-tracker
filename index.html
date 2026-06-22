@@ -310,7 +310,7 @@ function viewHTML(p){
 
     <!-- MIDDLE: sales by team member -->
     <section class="panel col-mid">
-      <div class="ph"><h2>Sales by team member</h2><span class="sub">$ sold · ranked · <span id="${p}-mid-scope">—</span></span></div>
+      <div class="ph"><h2>Sales by team member</h2><span class="sub"><span id="${p}-mid-lead">$ sold</span> · ranked · <span id="${p}-mid-scope">—</span></span></div>
       <div class="slist" id="${p}-staff"></div>
     </section>
 
@@ -360,18 +360,29 @@ function setDelta(elId,val,lbl,unit){
   el.className=(elId.endsWith('total-d')?'hdelta ':'delta ')+cls;
   el.innerHTML='<span>'+txt+'</span><span class="vs">'+lbl+'</span>';
 }
-function renderStaff(elId,staff){
+function renderStaff(elId,staff,volume){
   const wrap=$(elId); if(!wrap)return; wrap.innerHTML='';
-  const compact = staff.length>12;                 // long rosters (week) → single-line rows
+  const compact = staff.length>12;                 // long rosters (week/month) → single-line rows
   wrap.classList.toggle('compact', compact);
-  const max=Math.max(...staff.map(s=>s.sales),1);
-  staff.forEach((s,i)=>{
+  // volume mode (monthly): hide $ totals — rank by units, lead with units + orders, keep ATV/UPT
+  const rows = volume ? staff.slice().sort((a,b)=>b.units-a.units) : staff;
+  const max = Math.max(...rows.map(s=>volume?s.units:s.sales),1);
+  rows.forEach((s,i)=>{
     const atv=s.orders?s.sales/s.orders:0, upt=s.orders?s.units/s.orders:0;
     const row=document.createElement('div'); row.className='sbar'+(i===0?' lead':'');
     const head='<div class="sbar-top"><div class="sbar-nm"><span class="sbar-rk">'+(i+1)+'</span>'+
       '<span class="sbar-name">'+s.name+(i===0?'<span class="crown">👑</span>':'')+'</span></div>';
-    const bar='<div class="sbar-bar"><div class="sbar-fl" style="--w:'+(s.sales/max).toFixed(4)+'"></div></div>';
-    if(compact){
+    const bar='<div class="sbar-bar"><div class="sbar-fl" style="--w:'+((volume?s.units:s.sales)/max).toFixed(4)+'"></div></div>';
+    if(volume){
+      if(compact){
+        row.innerHTML=head+
+          '<span class="sbar-val">'+fmt(s.units)+'<span class="sbar-u">units · '+fmt(s.orders)+'o · '+money0(atv)+' ATV · '+upt.toFixed(1)+' UPT</span></span></div>'+bar;
+      }else{
+        row.innerHTML=head+
+          '<span class="sbar-val">'+fmt(s.units)+'<span class="sbar-u"> units</span></span></div>'+bar+
+          '<div class="sbar-sub"><span><b>'+fmt(s.orders)+'</b> orders</span><span><b>'+money0(atv)+'</b> ATV</span><span><b>'+upt.toFixed(1)+'</b> UPT</span></div>';
+      }
+    }else if(compact){
       row.innerHTML=head+
         '<span class="sbar-val">'+money0(s.sales)+'<span class="sbar-u">'+fmt(s.units)+'u · '+fmt(s.orders)+'o</span></span></div>'+bar;
     }else{
@@ -408,6 +419,7 @@ function renderPace(elId,xId,pace){
 function renderView(p,d){
   $(p+'-scope').textContent=d.scope;
   $(p+'-mid-scope').textContent=d.scope;
+  { const ml=$(p+'-mid-lead'); if(ml) ml.textContent = (p==='m') ? 'units sold' : '$ sold'; }
   $(p+'-brand-scope').textContent=d.scope;
   $(p+'-pace-scope').textContent=d.sub;
   $(p+'-pill').textContent=(p==='d'?'today':'this week');
@@ -440,7 +452,7 @@ function renderView(p,d){
   $(p+'-orders').textContent=fmt(d.posOrders);
   setDelta(p+'-total-d', d.salesDelta, d.deltaLbl,'$');
   // leaderboards + pace
-  renderStaff(p+'-staff', d.staff);
+  renderStaff(p+'-staff', d.staff, p==='m');
   renderBrands(p+'-brands', d.brands);
   renderPace(p+'-pace', p+'-pace-x', d.pace);
 }
