@@ -71,7 +71,7 @@ function aggregate(posOrders, { paceMode, scope, sub, deltaLbl, salesTarget, pre
     (staff[nm] = staff[nm] || { name: nm, sales: 0, units: 0, orders: 0 });
     staff[nm].sales += o.sales; staff[nm].units += o.units; staff[nm].orders++;
     for (const li of o.lines) { const b = pretty(li.vendor); brands[b] = (brands[b] || 0) + num(li.amount); }
-    const k = paceMode === 'daily' ? melDayKey(o.createdAt) : melHour(o.createdAt);
+    const k = (paceMode === 'daily' || paceMode === 'monthly') ? melDayKey(o.createdAt) : melHour(o.createdAt);
     buckets[k] = (buckets[k] || 0) + o.sales;
   }
   const orders = posOrders.length;
@@ -82,7 +82,11 @@ function aggregate(posOrders, { paceMode, scope, sub, deltaLbl, salesTarget, pre
     let o = top.find(b => b.name === 'Other'); if (o) o.sales = +(o.sales + rest).toFixed(2); else top.push({ name:'Other', sales:+rest.toFixed(2) });
     brandArr = top.sort((a, b) => b.sales - a.sales); }
   let labels = [], values = [], peak = '';
-  if (paceMode === 'daily') {
+  if (paceMode === 'monthly') {
+    const keys = Object.keys(buckets).sort();
+    labels = keys.map(k => String(parseInt(k.slice(-2), 10))); values = keys.map(k => Math.round(buckets[k]));
+    if (keys.length) peak = parseInt(keys.reduce((a, b) => buckets[b] > buckets[a] ? b : a, keys[0]).slice(-2), 10) + '';
+  } else if (paceMode === 'daily') {
     const keys = Object.keys(buckets).sort();
     labels = keys.map(k => melWdShort(k+'T12:00:00Z')); values = keys.map(k => Math.round(buckets[k]));
     if (keys.length) peak = melWdShort(keys.reduce((a, b) => buckets[b] > buckets[a] ? b : a, keys[0])+'T12:00:00Z');
@@ -174,7 +178,20 @@ async function main() {
   const lastMonthCutoffKey = `${lmYear}-${lmMonth}-${String(Math.min(+p.day + 1, daysInLm + 1)).padStart(2, '0')}`;
   const monthAbbr = new Intl.DateTimeFormat('en-AU', { timeZone: TZ, month: 'short' }).format(now);
 
-  // THIS WEEK (Mon 00:00 → end of today): full detail for staff + brands + pace
+  // ---- previous seed: reuse the heavy MONTH + LOYALTY blocks between hourly refreshes ----
+  let prevSeed = {};
+  try { const sp = require('path').resolve(SEED_PATH); delete require.cache[sp]; global.window = {}; require(sp); prevSeed = global.window.SALES_SEED || {}; } catch (e) { /* first run / no seed */ }
+  // DAY + WEEK refresh EVERY run; the heavy MONTH + LOYALTY pulls refresh ~once/hour (minute 00–11)
+  // to spare the shared Shopify API. Always refresh if a block is missing (e.g. first run).
+  const doHeavy = process.env.FORCE_HEAVY === '1' || (+p.minute < 12) || !prevSeed.month || !prevSeed.loyalty;
+
+  // monthly $ target = sum of each day's target across the WHOLE month (weekday $10k, weekend $15k)
+  const dim = new Date(Date.UTC(+p.year, +p.month, 0)).getUTCDate();
+  let monthlyTarget = 0;
+  for (let d = 1; d <= dim; d++) { const wdi = new Date(Date.UTC(+p.year, +p.month - 1, d, 12)).getUTCDay(); monthlyTarget += (wdi === 0 || wdi === 6) ? CFG.WEEKEND_TARGET : CFG.WEEKDAY_TARGET; }
+  const monthName = new Intl.DateTimeFormat('en-AU', { timeZone: TZ, month: 'long' }).format(now);
+
+  // MAIN PULL (full detail) — spans the whole month on heavy runs (covers month+week+day), else just this week
   const SEL_FULL = `name createdAt sourceName currentSubtotalLineItemsQuantity
     currentTotalPriceSet{ shopMoney{ amount } }
     events(first:6){ edges{ node{ message } } }
@@ -189,10 +206,12 @@ async function main() {
       lines: (n.lineItems?.edges || []).map(e => ({ vendor: e.node.vendor, amount: e.node.discountedTotalSet?.shopMoney?.amount })),
     };
   };
-  const weekAll = await pageOrders(
-    `created_at:>='${monKey}T00:00:00${off}' created_at:<'${tomorrowKey}T00:00:00${off}'`, SEL_FULL, mapFull);
-  const weekPos = weekAll.filter(o => o.src === 'pos');
-  const todayPos = weekPos.filter(o => melDayKey(o.createdAt) === todayKey);
+  const periodStartKey = doHeavy ? (monthStartKey < monKey ? monthStartKey : monKey) : monKey;
+  const periodAll = await pageOrders(
+    `created_at:>='${periodStartKey}T00:00:00${off}' created_at:<'${tomorrowKey}T00:00:00${off}'`, SEL_FULL, mapFull);
+  const periodPos = periodAll.filter(o => o.src === 'pos');
+  const todayPos = periodPos.filter(o => melDayKey(o.createdAt) === todayKey);
+  const weekPos  = periodPos.filter(o => melDayKey(o.createdAt) >= monKey);
 
   // LAST WEEK (same elapsed: Mon-7 00:00 → today-7 at now-time): light, POS totals only for deltas
   const SEL_LITE = `sourceName createdAt currentTotalPriceSet{ shopMoney{ amount } }`;
@@ -215,20 +234,34 @@ async function main() {
     deltaLbl: 'vs last week', salesTarget: CFG.WEEK_TARGET,
     prevSales: sum(lwPos), prevOrders: lwPos.length });
 
+  // MONTH (heavy) — refreshed hourly, reused from the previous seed otherwise
+  let month;
+  if (doHeavy) {
+    const monthPos = periodPos.filter(o => melDayKey(o.createdAt) >= monthStartKey);
+    const lmAll = await pageOrders(
+      `created_at:>='${lastMonthStartKey}T00:00:00${off}' created_at:<'${lastMonthCutoffKey}T00:00:00${off}'`,
+      SEL_LITE, n => ({ src: n.sourceName, sales: num(n.currentTotalPriceSet?.shopMoney?.amount) }));
+    const lmPos = lmAll.filter(o => o.src === 'pos');
+    month = aggregate(monthPos, {
+      paceMode: 'monthly', scope: `${monthName} ${p.year}`, sub: `this month · 1–${+p.day} ${monthAbbr}`,
+      deltaLbl: 'vs last month', salesTarget: monthlyTarget,
+      prevSales: sum(lmPos), prevOrders: lmPos.length });
+  } else { month = prevSeed.month; }
+
   // stamp asOf in Melbourne local time (DST-safe), then write the seed
   const fo = {}; for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' }).formatToParts(now)) fo[x.type] = x.value;
   const asOf = `${fo.year}-${fo.month}-${fo.day}T${fo.hour}:${fo.minute}:${fo.second}${off}`;
 
-  // loyalty is OPTIONAL — needs the app's read_customers scope. If denied/failing, skip it
-  // (write loyalty:null) so the sales dashboard still updates. The 3rd screen activates by itself
-  // once the scope is granted and real data lands.
-  let loy = null;
-  try { loy = await loyalty({ todayKey, monKey, monthStartKey, lastMonthStartKey, lastMonthCutoffKey, monthAbbr }); }
-  catch (e) { console.error('loyalty skipped (' + e.message.slice(0, 120) + ')'); }
+  // LOYALTY (heavy, hourly) — needs read_customers scope; non-fatal. Reuse prev block on light runs / failure.
+  let loy = prevSeed.loyalty || null;
+  if (doHeavy) {
+    try { loy = await loyalty({ todayKey, monKey, monthStartKey, lastMonthStartKey, lastMonthCutoffKey, monthAbbr }); }
+    catch (e) { console.error('loyalty skipped (' + e.message.slice(0, 120) + ')'); loy = prevSeed.loyalty || null; }
+  }
 
-  const seed = { asOf, day, week, loyalty: loy };
+  const seed = { asOf, day, week, month: month || null, loyalty: loy };
   const header = '/* sales-seed.js — DATA ONLY. Refreshed by GitHub Actions (cloud sync). Real Shopify POS data. */\n';
   fs.writeFileSync(SEED_PATH, header + 'window.SALES_SEED = ' + JSON.stringify(seed) + ';\n');
-  console.log(`sales-fetch OK  today ${day.scope}: $${day.totalSales} / ${day.posOrders} orders / ${day.units}u  (week $${week.totalSales} / ${week.posOrders})  loyalty ${loy ? loy.total + ' members, ' + loy.today + ' today, ' + loy.thisMonth + ' this month' : 'SKIPPED (no read_customers scope)'}  asOf ${asOf}`);
+  console.log(`sales-fetch OK ${doHeavy ? '[heavy]' : '[light]'}  today ${day.scope}: $${day.totalSales}/${day.posOrders}o  week $${week.totalSales}/${week.posOrders}o  month ${month ? '$' + month.totalSales + '/' + month.posOrders + 'o' : '—'}  loyalty ${loy ? loy.total + 'm/' + loy.thisMonth + 'mo' : '—'}  asOf ${asOf}`);
 }
 main().catch(e => { console.error('sales-fetch FAILED: ' + e.message); process.exit(1); });
