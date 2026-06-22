@@ -15,7 +15,8 @@ const SEED_PATH = process.argv[2] || 'sales-seed.js';
 const TZ = 'Australia/Melbourne';
 
 /* ---- targets (only the $ day target is business-set; the rest are sensible KPI benchmarks) ---- */
-const CFG = { DAY_TARGET: 5000, WEEK_TARGET: 30000, UPT_TARGET: 2.0, ATV_TARGET: 140 };
+const CFG = { WEEKDAY_TARGET: 10000, WEEKEND_TARGET: 15000, WEEK_TARGET: 80000, UPT_TARGET: 2.0, ATV_TARGET: 140 };
+// Daily $ target by Melbourne weekday: Mon–Fri = $10k, Sat & Sun = $15k (week total Mon–Sun = $80k).
 
 /* ---------- Melbourne date helpers (Intl only → portable on the Ubuntu runner) ---------- */
 const melParts = d => { const o = {}; for (const p of new Intl.DateTimeFormat('en-CA',
@@ -141,9 +142,11 @@ async function main() {
   const sum = arr => arr.reduce((a, b) => a + b.sales, 0);
 
   const wdName = new Intl.DateTimeFormat('en-AU', { timeZone: TZ, weekday: 'long' }).format(now);
+  const wd = melWeekdayIdx(now);                                              // 0=Sun … 6=Sat (Melbourne)
+  const dayTarget = (wd === 0 || wd === 6) ? CFG.WEEKEND_TARGET : CFG.WEEKDAY_TARGET;  // weekend $15k, weekday $10k
   const day = aggregate(todayPos, {
     paceMode: 'hourly', scope: labelDay(todayKey), sub: 'today · trading',
-    deltaLbl: 'vs last ' + wdName, salesTarget: CFG.DAY_TARGET,
+    deltaLbl: 'vs last ' + wdName, salesTarget: dayTarget,
     prevSales: sum(lwSameDayPos), prevOrders: lwSameDayPos.length });
   const week = aggregate(weekPos, {
     paceMode: 'daily', scope: `${labelDay(monKey).replace(/ \w+$/, '')} – ${labelDay(todayKey)}`, sub: 'this week · Mon–Sun',
