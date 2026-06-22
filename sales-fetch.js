@@ -15,7 +15,7 @@ const SEED_PATH = process.argv[2] || 'sales-seed.js';
 const TZ = 'Australia/Melbourne';
 
 /* ---- targets (only the $ day target is business-set; the rest are sensible KPI benchmarks) ---- */
-const CFG = { WEEKDAY_TARGET: 10000, WEEKEND_TARGET: 15000, WEEK_TARGET: 80000, UPT_TARGET: 2.0, ATV_TARGET: 140 };
+const CFG = { WEEKDAY_TARGET: 10000, WEEKEND_TARGET: 15000, WEEK_TARGET: 80000, UPT_TARGET: 2.0, ATV_TARGET: 200 };
 // Daily $ target by Melbourne weekday: Mon–Fri = $10k, Sat & Sun = $15k (week total Mon–Sun = $80k).
 
 /* ---------- Melbourne date helpers (Intl only → portable on the Ubuntu runner) ---------- */
