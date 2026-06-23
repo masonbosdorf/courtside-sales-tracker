@@ -326,7 +326,7 @@ function viewHTML(p){
           </div>
           <div class="hside">
             <div class="big2" id="${p}-orders">—</div>
-            <div class="lbl2">POS orders</div>
+            <div class="lbl2" id="${p}-lbl2">POS orders</div>
           </div>
         </div>
       </section>
@@ -422,8 +422,7 @@ function renderView(p,d){
   { const ml=$(p+'-mid-lead'); if(ml) ml.textContent = (p==='m') ? 'units sold' : '$ sold'; }
   $(p+'-brand-scope').textContent=d.scope;
   $(p+'-pace-scope').textContent=d.sub;
-  $(p+'-pill').textContent=(p==='d'?'today':'this week');
-  $(p+'-total-lbl').textContent=(p==='d'?'total sales today':'total sales this week');
+  $(p+'-pill').textContent=(p==='d'?'today':p==='w'?'this week':'this month');
   // KPIs
   $(p+'-units').textContent=fmt(d.units);
   if(d.unitsDelta!=null) setDelta(p+'-units-d', d.unitsDelta, d.deltaLbl,'int'); else $(p+'-units-d').style.display='none';
@@ -441,16 +440,35 @@ function renderView(p,d){
   $(p+'-goal-arc').style.strokeDashoffset=(RING_C*(1-pct)).toFixed(1);
   $(p+'-goal-arc').style.stroke=smashed?'var(--gold)':'var(--up)';
   $(p+'-goal-arc').style.filter=smashed?'drop-shadow(0 0 7px rgba(255,214,107,0.6))':'drop-shadow(0 0 6px rgba(70,224,138,0.45))';
-  { const gd=$(p+'-goal-done'), gn=gd.parentElement; gd.textContent=kMoney(d.totalSales);
-    const n=gd.textContent.length; gn.classList.remove('l5','l6','l7');
-    if(n>=7) gn.classList.add('l7'); else if(n===6) gn.classList.add('l6'); else if(n===5) gn.classList.add('l5'); }
-  $(p+'-goal-tot').textContent='/ '+kMoney(d.salesTarget);
-  { const gp=$(p+'-goal-pct'); gp.textContent=Math.round(ratio*100)+'% of target'+(smashed?' 🔥':''); gp.style.color=smashed?'var(--gold)':'var(--up)'; }
-  $(p+'-goal-sub').textContent=(p==='d'?'today':'this week')+' · '+kMoney(d.salesTarget)+' goal';
+  if(p==='m'){
+    // monthly — % only, no $ amounts (ring still tracks progress)
+    const gd=$(p+'-goal-done'), gn=gd.parentElement; gd.textContent=Math.round(ratio*100)+'%'; gn.classList.remove('l5','l6','l7');
+    $(p+'-goal-tot').textContent='';
+    { const gp=$(p+'-goal-pct'); gp.textContent='of monthly target'+(smashed?' 🔥':''); gp.style.color=smashed?'var(--gold)':'var(--up)'; }
+    $(p+'-goal-sub').textContent='this month · target';
+  } else {
+    { const gd=$(p+'-goal-done'), gn=gd.parentElement; gd.textContent=kMoney(d.totalSales);
+      const n=gd.textContent.length; gn.classList.remove('l5','l6','l7');
+      if(n>=7) gn.classList.add('l7'); else if(n===6) gn.classList.add('l6'); else if(n===5) gn.classList.add('l5'); }
+    $(p+'-goal-tot').textContent='/ '+kMoney(d.salesTarget);
+    { const gp=$(p+'-goal-pct'); gp.textContent=Math.round(ratio*100)+'% of target'+(smashed?' 🔥':''); gp.style.color=smashed?'var(--gold)':'var(--up)'; }
+    $(p+'-goal-sub').textContent=(p==='d'?'today':'this week')+' · '+kMoney(d.salesTarget)+' goal';
+  }
   // hero
-  $(p+'-total').textContent=money0(d.totalSales);
-  $(p+'-orders').textContent=fmt(d.posOrders);
-  setDelta(p+'-total-d', d.salesDelta, d.deltaLbl,'$');
+  if(p==='m'){
+    // monthly — no financials: POS orders is the headline, units sold on the side
+    $(p+'-total').textContent=fmt(d.posOrders);
+    $(p+'-total-lbl').textContent='POS orders this month';
+    setDelta(p+'-total-d', d.ordersDelta, d.deltaLbl,'int');
+    $(p+'-orders').textContent=fmt(d.units);
+    { const l2=$(p+'-lbl2'); if(l2) l2.textContent='units sold'; }
+  } else {
+    $(p+'-total').textContent=money0(d.totalSales);
+    $(p+'-total-lbl').textContent=(p==='d'?'total sales today':'total sales this week');
+    $(p+'-orders').textContent=fmt(d.posOrders);
+    setDelta(p+'-total-d', d.salesDelta, d.deltaLbl,'$');
+    { const l2=$(p+'-lbl2'); if(l2) l2.textContent='POS orders'; }
+  }
   // leaderboards + pace
   renderStaff(p+'-staff', d.staff, p==='m');
   renderBrands(p+'-brands', d.brands);
