@@ -57,8 +57,8 @@ body{
 .loy-hero{border:1px solid rgba(255,214,107,0.45)!important;background:radial-gradient(120% 140% at 100% 0%,rgba(255,214,107,0.16) 0%,rgba(255,214,107,0.02) 45%,transparent 70%),var(--panel)!important;}
 .loy-hero .live-pill{color:var(--gold)!important;border-color:rgba(255,214,107,0.5)!important;}
 .loy-hero .live-pill .dot{background:var(--gold)!important;box-shadow:0 0 8px var(--gold)!important;}
-#view-l .bar.peak{background:var(--gold)!important;box-shadow:0 0 10px rgba(255,214,107,0.4)!important;}
-#view-l .sbar.lead .sbar-fl{background:linear-gradient(90deg,var(--gold),#ffe9a8)!important;}
+#view-l .bar.peak,#view-ld .bar.peak{background:var(--gold)!important;box-shadow:0 0 10px rgba(255,214,107,0.4)!important;}
+#view-l .sbar.lead .sbar-fl,#view-ld .sbar.lead .sbar-fl{background:linear-gradient(90deg,var(--gold),#ffe9a8)!important;}
 .lsplit{height:clamp(12px,1.4cqh,20px);background:rgba(255,255,255,0.06);border-radius:6px;overflow:hidden;display:flex;margin:clamp(8px,1.2cqh,16px) 0;}
 .lsplit .a{background:var(--up);height:100%;} .lsplit .b{background:rgba(255,255,255,0.22);height:100%;}
 .lsrcrow{display:flex;justify-content:space-between;font-size:clamp(10px,0.82cqw,15px);color:var(--muted);}
@@ -206,6 +206,9 @@ body{
 .foot-brand .t2{font-size:clamp(10px,0.82cqw,15px);letter-spacing:0.22em;text-transform:uppercase;color:var(--faint);margin-top:clamp(4px,0.5cqh,8px);}
 .foot-mid{display:flex;align-items:center;gap:clamp(8px,0.8cqw,14px);}
 .dot-nav{display:flex;gap:8px;}
+.pause-btn{cursor:pointer;background:rgba(255,255,255,0.07);border:1px solid var(--line);color:var(--muted);border-radius:7px;font-family:"Space Grotesk";font-size:clamp(10px,0.85cqw,15px);line-height:1;letter-spacing:0.12em;padding:clamp(4px,0.5cqw,8px) clamp(7px,0.8cqw,12px);transition:color .15s,border-color .15s;}
+.pause-btn:hover{color:var(--signal);}
+.pause-btn.on{color:var(--up);border-color:rgba(70,224,138,0.55);background:rgba(70,224,138,0.1);}
 .nav-dot{width:clamp(8px,0.7cqw,11px);height:clamp(8px,0.7cqw,11px);border-radius:50%;background:rgba(255,255,255,0.2);transition:all 0.3s;}
 .nav-dot.on{background:var(--signal);width:clamp(22px,2cqw,30px);border-radius:999px;}
 .foot-mid .hint{font-size:clamp(8px,0.6cqw,10px);letter-spacing:0.18em;text-transform:uppercase;color:var(--faint);}
@@ -225,6 +228,7 @@ body{
   <section class="view" id="view-w"></section>
   <section class="view" id="view-m"></section>
   <section class="view" id="view-l" style="display:none;"></section>
+  <section class="view" id="view-ld" style="display:none;"></section>
 </div></div>
 
 <!-- ===== FOOTER ===== -->
@@ -237,8 +241,9 @@ body{
     </div>
   </div>
   <div class="foot-mid">
-    <div class="dot-nav"><span class="nav-dot on" id="nd-0"></span><span class="nav-dot" id="nd-1"></span><span class="nav-dot" id="nd-2"></span><span class="nav-dot" id="nd-3" style="display:none"></span></div>
-    <span class="hint">← → · click · auto 15s</span>
+    <button id="pause-btn" class="no-tap pause-btn" aria-label="Pause auto-scroll" title="Pause / resume auto-scroll">❚❚</button>
+    <div class="dot-nav"><span class="nav-dot on" id="nd-0"></span><span class="nav-dot" id="nd-1"></span><span class="nav-dot" id="nd-2"></span><span class="nav-dot" id="nd-3" style="display:none"></span><span class="nav-dot" id="nd-4" style="display:none"></span></div>
+    <span class="hint">tap / ← → · ❚❚ pause</span>
   </div>
   <div class="foot-right">
     <div class="clock" id="now-clock">--:--<span class="secs">:--</span></div>
@@ -349,6 +354,7 @@ $('view-d').innerHTML=viewHTML('d');
 $('view-w').innerHTML=viewHTML('w');
 $('view-m').innerHTML=viewHTML('m');
 $('view-l').innerHTML=viewLoyaltyHTML();
+$('view-ld').innerHTML=viewLoyaltyDayHTML();
 
 /* ===== render a view from its data slice ===== */
 const RING_C=2*Math.PI*52; // ≈326.7
@@ -557,20 +563,81 @@ function renderLoyalty(d){
   renderLeaders('loy-leaders', d.leaderboard||[]);
   renderTrend('loy-trend','loy-trend-x', d.trend||{labels:[],values:[]});
 }
+/* ===== CourtPass · DAY (today's signups by employee) ===== */
+function viewLoyaltyDayHTML(){ return `
+  <div class="dash">
+    <div class="col-left">
+      <section class="panel">
+        <div class="ph"><h2>Signups</h2><span class="scope">CourtPass · today</span></div>
+        <div class="stat-wrap">
+          <div class="stat"><div class="num" id="lod-today">—</div><div class="lbl">Signups today</div></div>
+          <div class="divider"></div>
+          <div class="stat"><div class="num" id="lod-week">—</div><div class="lbl">This week · since Mon</div></div>
+          <div class="divider"></div>
+          <div class="stat"><div class="num" id="lod-total">—</div><div class="lbl">Total members</div></div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="ph"><h2>Signup source</h2><span class="sub">today</span></div>
+        <div class="stat-wrap" style="justify-content:center;">
+          <div class="stat"><div class="num" id="lod-instore" style="color:var(--up)">—</div><div class="lbl">In-store · staff-assisted</div></div>
+          <div class="lsplit"><div class="a" id="lod-split-a"></div><div class="b" id="lod-split-b"></div></div>
+          <div class="lsrcrow"><span><b id="lod-instore2">—</b> in-store</span><span><b id="lod-online">—</b> online</span></div>
+          <div class="lbl" style="text-align:center;margin-top:8px;" id="lod-pct">—</div>
+        </div>
+      </section>
+    </div>
+    <section class="panel col-mid">
+      <div class="ph"><h2>Signups by team member</h2><span class="sub">in-store · ranked · today</span></div>
+      <div class="slist" id="lod-leaders"></div>
+    </section>
+    <div class="col-right">
+      <section class="panel hero loy-hero">
+        <div class="live-pill"><span class="dot"></span>CourtPass · today</div>
+        <div class="hrow">
+          <div class="hmain"><div class="big" id="lod-today2">—</div><div class="lbl">signups today</div><div class="hdelta up" id="lod-sub"></div></div>
+          <div class="hside"><div class="big2" id="lod-instore3">—</div><div class="lbl2">in-store today</div></div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="ph"><h2>Last 7 days</h2><span class="sub">signups · by day</span></div>
+        <div class="chart"><div class="bars" id="lod-trend"></div><div class="x-axis" id="lod-trend-x"></div></div>
+        <div class="peak-note">Busiest: <b id="lod-peak">—</b></div>
+      </section>
+    </div>
+  </div>`; }
+function renderLoyaltyDay(d){
+  if(!d) return;
+  $('lod-today').textContent=fmt(d.today); $('lod-week').textContent=fmt(d.thisWeek); $('lod-total').textContent=fmt(d.total);
+  $('lod-today2').textContent=fmt(d.today);
+  const inst=d.todayInStore||0, onl=d.todayOnline||0, tot=(inst+onl)||1, pct=Math.round(inst/tot*100);
+  $('lod-instore').textContent=fmt(inst); $('lod-instore2').textContent=fmt(inst); $('lod-instore3').textContent=fmt(inst); $('lod-online').textContent=fmt(onl);
+  $('lod-split-a').style.width=pct+'%'; $('lod-split-b').style.width=(100-pct)+'%';
+  $('lod-pct').textContent=pct+'% signed up in-store by staff';
+  $('lod-sub').innerHTML='<span>'+fmt(inst)+'</span><span class="vs">in-store by staff</span>';
+  const t=d.trend||{labels:[],values:[]}, n=(t.values||[]).length;
+  const last7={labels:(t.labels||[]).slice(Math.max(0,n-7)), values:(t.values||[]).slice(Math.max(0,n-7))};
+  let pk='—'; if(last7.values.length){ const mi=last7.values.indexOf(Math.max(...last7.values)); pk='Day '+(last7.labels[mi]||''); }
+  $('lod-peak').textContent=pk;
+  renderLeaders('lod-leaders', d.todayLeaderboard||[]);
+  renderTrend('lod-trend','lod-trend-x', last7);
+}
 function syncViews(){
   const S=window.SALES_SEED||{};
   const hasMonth=!!(S.month && S.month.posOrders!=null);
   const hasLoy=!!(S.loyalty && S.loyalty.total);
-  // visible views, in order: Daily, Weekly, [Monthly], [CourtPass]
-  const names=['Daily','Weekly']; if(hasMonth) names.push('Monthly'); if(hasLoy) names.push('CourtPass');
+  const hasLoyDay=!!(S.loyalty && S.loyalty.todayLeaderboard);
+  // order: Daily, Weekly, [Monthly], [CourtPass · Month], [CourtPass · Day]
+  const names=['Daily','Weekly']; if(hasMonth) names.push('Monthly'); if(hasLoy) names.push('CourtPass · Month'); if(hasLoyDay) names.push('CourtPass · Day');
   window._screenNames=names;
-  const vm=$('view-m'); if(vm) vm.style.display = hasMonth?'flex':'none';
-  const vl=$('view-l'); if(vl) vl.style.display = hasLoy?'flex':'none';
+  const set=(id,show)=>{ const e=$(id); if(e) e.style.display=show?'flex':'none'; };
+  set('view-m',hasMonth); set('view-l',hasLoy); set('view-ld',hasLoyDay);
   VIEW_COUNT = names.length;
   const t=$('track'); if(t) t.style.width=(VIEW_COUNT*100)+'%';
   document.querySelectorAll('#track > .view').forEach(v=>{ v.style.flex='0 0 '+(100/VIEW_COUNT)+'%'; v.style.width=(100/VIEW_COUNT)+'%'; });
   if($('nd-2')) $('nd-2').style.display = hasMonth?'':'none';
   if($('nd-3')) $('nd-3').style.display = hasLoy?'':'none';
+  if($('nd-4')) $('nd-4').style.display = hasLoyDay?'':'none';
   if(viewIdx>=VIEW_COUNT) viewIdx=0;
   showView(viewIdx);
 }
@@ -578,17 +645,18 @@ function setScreenTitle(idx){
   const names=window._screenNames||['Daily','Weekly','Monthly','CourtPass'];
   const nm=names[idx]||names[0];
   const st=$('screen-title'); if(st) st.innerHTML='Sales Tracker <span class="scr">— '+nm+'</span>';
-  const fb=document.querySelector('.foot-brand'); if(fb) fb.classList.toggle('loy', nm==='CourtPass');
+  const fb=document.querySelector('.foot-brand'); if(fb) fb.classList.toggle('loy', nm.indexOf('CourtPass')===0);
 }
 function renderAll(){
   const S=window.SALES_SEED; if(!S)return;
   renderView('d',S.day); renderView('w',S.week);
   if(S.month && S.month.posOrders!=null) renderView('m',S.month);
   if(S.loyalty && S.loyalty.total) renderLoyalty(S.loyalty);
+  if(S.loyalty && S.loyalty.todayLeaderboard) renderLoyaltyDay(S.loyalty);
   syncViews();
   // apply a #daily/#weekly/#monthly/#loyalty deep-link once, after the seed sets the real views
   if(!window._hashApplied){ window._hashApplied=true;
-    const map={'#daily':'Daily','#weekly':'Weekly','#monthly':'Monthly','#loyalty':'CourtPass'};
+    const map={'#daily':'Daily','#weekly':'Weekly','#monthly':'Monthly','#loyalty':'CourtPass · Month','#cpmonth':'CourtPass · Month','#cpday':'CourtPass · Day'};
     const want=map[location.hash], idx=(window._screenNames||[]).indexOf(want);
     if(want && idx>=0){ showView(idx); arm(ROTATE_MS,1); } }
   const a=$('asof'); if(a&&S.asOf) a.textContent=new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Melbourne',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(S.asOf));
@@ -609,7 +677,7 @@ const ROTATE_MS=15000; let VIEW_COUNT=2, viewIdx=0, rotateTimer=null, armAt=0, r
 function showView(i){
   viewIdx=((i%VIEW_COUNT)+VIEW_COUNT)%VIEW_COUNT;
   const t=$('track'); if(t) t.style.transform='translateX(-'+(viewIdx*(100/VIEW_COUNT))+'%)';
-  for(let k=0;k<4;k++){ const d=$('nd-'+k); if(d) d.classList.toggle('on',viewIdx===k); }
+  for(let k=0;k<5;k++){ const d=$('nd-'+k); if(d) d.classList.toggle('on',viewIdx===k); }
   setScreenTitle(viewIdx);
 }
 // drive the depleting countdown bar from `fromScale` (1=full) down to 0 over `ms`
@@ -623,35 +691,48 @@ function currentBarScale(){
   const m=getComputedStyle(f).transform.match(/matrix\(([^)]+)\)/);
   return m ? Math.max(0, Math.min(1, parseFloat(m[1].split(',')[0]))) : 1;
 }
+let autoOff=false, ignoreTap=false;          // autoOff = persistent kiosk-pause toggle
 function arm(ms, fromScale){ clearTimeout(rotateTimer); paused=false; remain=ms; armAt=Date.now();
+  if(autoOff){ const f=$('rotate-fill'); if(f){ f.style.transition='none'; f.style.transform='scaleX(0)'; } return; }  // paused → no auto-advance
   runBar(fromScale==null?1:fromScale, ms); rotateTimer=setTimeout(()=>go(1), ms); }
-function go(dir){ showView(viewIdx+dir); arm(ROTATE_MS, 1); }      // advance + fresh 15s
-function pauseRotation(){ if(paused) return; paused=true; clearTimeout(rotateTimer);
+function go(dir){ showView(viewIdx+dir); arm(ROTATE_MS, 1); }      // manual nav (re-arms; a no-op timer when paused → stays put)
+function pauseRotation(){ if(paused||autoOff) return; paused=true; clearTimeout(rotateTimer);
   remain=Math.max(0, remain-(Date.now()-armAt));                  // freeze remaining time
   const s=currentBarScale(), f=$('rotate-fill'); if(f){ f.style.transition='none'; f.style.transform='scaleX('+s+')'; } }
-function resumeRotation(){ if(!paused) return; paused=false; armAt=Date.now();
+function resumeRotation(){ if(!paused||autoOff) return; paused=false; armAt=Date.now();
   runBar(currentBarScale(), remain); clearTimeout(rotateTimer); rotateTimer=setTimeout(()=>go(1), remain); }   // resume where it stopped
+function updatePauseBtn(){ const b=$('pause-btn'); if(b){ b.textContent=autoOff?'►':'❚❚'; b.classList.toggle('on',autoOff); b.title=(autoOff?'Resume':'Pause')+' auto-scroll'; } }
+function toggleAuto(){ autoOff=!autoOff;
+  if(autoOff){ clearTimeout(rotateTimer); const f=$('rotate-fill'); if(f){ f.style.transition='none'; f.style.transform='scaleX(0)'; } }
+  else { arm(ROTATE_MS,1); }
+  updatePauseBtn(); }
 arm(ROTATE_MS, 1);
+{ const pb=$('pause-btn'); if(pb) pb.addEventListener('click', e=>{ e.stopPropagation(); toggleAuto(); }); }
 addEventListener('keydown', e=>{
   if(e.key==='ArrowLeft'){ e.preventDefault(); go(-1); }
   else if(e.key==='ArrowRight'||e.code==='Space'||e.key===' '){ e.preventDefault(); go(1); }
+  else if(e.key==='p'||e.key==='P'){ e.preventDefault(); toggleAuto(); }   // P toggles pause
 });
 /* Touch / mouse (iPad-friendly, Pointer Events):
    • quick TAP anywhere  → change page (tap left third = back, elsewhere = forward)
-   • PRESS-AND-HOLD      → pause the 15s timer while held; release resumes from where it paused */
+   • PRESS-AND-HOLD      → pause the 15s timer while held; release resumes from where it paused
+   • the ❚❚ button (or P key) toggles a persistent pause — stays put; tap/arrows still navigate */
 const HOLD_MS=240; let downX=0, holdTimer=null, didHold=false;
 const stage=$('stage');
 stage.addEventListener('pointerdown', e=>{
+  if(e.target.closest('.no-tap')){ ignoreTap=true; return; }              // the pause button — not a nav tap
+  ignoreTap=false;
   try{ stage.setPointerCapture(e.pointerId); }catch(_){}
   downX=e.clientX; didHold=false;
   holdTimer=setTimeout(()=>{ didHold=true; pauseRotation(); }, HOLD_MS);   // held long enough → pause
 });
-function endPointer(){ clearTimeout(holdTimer);
+function endPointer(){ if(ignoreTap){ ignoreTap=false; return; }
+  clearTimeout(holdTimer);
   if(didHold){ resumeRotation(); didHold=false; return; }                 // was a hold → resume, don't navigate
   go(downX < innerWidth*0.33 ? -1 : 1);                                   // was a tap → change page
 }
 stage.addEventListener('pointerup', endPointer);
-stage.addEventListener('pointercancel', ()=>{ clearTimeout(holdTimer); if(didHold){ resumeRotation(); didHold=false; } });
+stage.addEventListener('pointercancel', ()=>{ if(ignoreTap){ ignoreTap=false; return; } clearTimeout(holdTimer); if(didHold){ resumeRotation(); didHold=false; } });
 // (deep-link #week / #loyalty is applied inside renderAll, once the seed sets the real VIEW_COUNT)
 
 /* ===== live Melbourne clock ===== */

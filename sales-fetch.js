@@ -160,6 +160,38 @@ async function loyalty(k) {
   return { total, today, thisWeek, thisMonth, lastMonthToDate, inStore, online, leaderboard, trend };
 }
 
+/* loyaltyDaily — LIGHT, runs every cycle: TODAY's signups resolved by employee (today's enrolled
+   members are few, so this is cheap). Merged onto the loyalty block for the "CourtPass · Day" screen. */
+async function loyaltyDaily(k) {
+  const SEG = "metafields.app--1576377--loyalty.status = 'Enrolled'";
+  let after = null, more = true; const ids = [];
+  while (more) {
+    const d = await gql(`query($q:String!,$a:String){ customerSegmentMembers(first:250, after:$a, query:$q){ edges{ node{ id } } pageInfo{ hasNextPage endCursor } } }`,
+      { q: `${SEG} AND customer_added_date >= ${k.todayKey}`, a: after });
+    ids.push(...d.customerSegmentMembers.edges.map(e => e.node.id.replace('CustomerSegmentMember', 'Customer')));
+    more = d.customerSegmentMembers.pageInfo.hasNextPage; after = d.customerSegmentMembers.pageInfo.endCursor;
+  }
+  const staff = {}; let online = 0;
+  for (let i = 0; i < ids.length; i += 50) {
+    const d = await gql(`query($ids:[ID!]!){ nodes(ids:$ids){ ... on Customer { createdAt orders(first:1, sortKey:CREATED_AT){ nodes{ createdAt sourceName events(first:6){ edges{ node{ message } } } } } } } }`,
+      { ids: ids.slice(i, i + 50) });
+    for (const nd of (d.nodes || [])) {
+      if (!nd) continue;
+      const created = new Date(nd.createdAt).getTime();
+      const o = (nd.orders?.nodes || [])[0];
+      let emp = null;
+      if (o && o.sourceName === 'pos') {
+        const within = Math.abs(new Date(o.createdAt).getTime() - created) <= 900000;
+        const pm = (o.events?.edges || []).map(e => e.node.message).find(m => POSrx.test(m));
+        if (within && pm) { const nm = pm.replace(/ processed this order.*/, '').trim(); if (nm && nm !== 'CourtSide Default') emp = nm; }
+      }
+      if (emp) staff[emp] = (staff[emp] || 0) + 1; else online++;
+    }
+  }
+  const todayLeaderboard = Object.entries(staff).map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+  return { today: ids.length, todayLeaderboard, todayInStore: todayLeaderboard.reduce((a, b) => a + b.count, 0), todayOnline: online };
+}
+
 async function main() {
   const now = new Date();
   const p = melParts(now), off = melOffset(now), nowHM = `${p.hour}:${p.minute}`;
@@ -252,12 +284,15 @@ async function main() {
   const fo = {}; for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' }).formatToParts(now)) fo[x.type] = x.value;
   const asOf = `${fo.year}-${fo.month}-${fo.day}T${fo.hour}:${fo.minute}:${fo.second}${off}`;
 
-  // LOYALTY (heavy, hourly) — needs read_customers scope; non-fatal. Reuse prev block on light runs / failure.
+  // LOYALTY — needs read_customers scope; non-fatal. Monthly block is heavy/hourly (reuse prev otherwise);
+  // the today-by-employee block is LIGHT and refreshes every cycle for the "CourtPass · Day" screen.
   let loy = prevSeed.loyalty || null;
   if (doHeavy) {
     try { loy = await loyalty({ todayKey, monKey, monthStartKey, lastMonthStartKey, lastMonthCutoffKey, monthAbbr }); }
     catch (e) { console.error('loyalty skipped (' + e.message.slice(0, 120) + ')'); loy = prevSeed.loyalty || null; }
   }
+  try { const ld = await loyaltyDaily({ todayKey }); if (ld) loy = Object.assign({}, loy || {}, ld); }
+  catch (e) { console.error('loyalty-daily skipped (' + e.message.slice(0, 80) + ')'); }
 
   const seed = { asOf, day, week, month: month || null, loyalty: loy };
   const header = '/* sales-seed.js — DATA ONLY. Refreshed by GitHub Actions (cloud sync). Real Shopify POS data. */\n';
