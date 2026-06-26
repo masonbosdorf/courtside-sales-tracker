@@ -227,6 +227,7 @@ body{
   <section class="view" id="view-d"></section>
   <section class="view" id="view-w"></section>
   <section class="view" id="view-m"></section>
+  <section class="view" id="view-c" style="display:none;"></section>
   <section class="view" id="view-l" style="display:none;"></section>
   <section class="view" id="view-ld" style="display:none;"></section>
 </div></div>
@@ -242,7 +243,7 @@ body{
   </div>
   <div class="foot-mid">
     <button id="pause-btn" class="no-tap pause-btn" aria-label="Pause auto-scroll" title="Pause / resume auto-scroll">❚❚</button>
-    <div class="dot-nav"><span class="nav-dot on" id="nd-0"></span><span class="nav-dot" id="nd-1"></span><span class="nav-dot" id="nd-2"></span><span class="nav-dot" id="nd-3" style="display:none"></span><span class="nav-dot" id="nd-4" style="display:none"></span></div>
+    <div class="dot-nav"><span class="nav-dot on" id="nd-0"></span><span class="nav-dot" id="nd-1"></span><span class="nav-dot" id="nd-2"></span><span class="nav-dot" id="nd-3" style="display:none"></span><span class="nav-dot" id="nd-4" style="display:none"></span><span class="nav-dot" id="nd-5" style="display:none"></span></div>
     <span class="hint">tap / ← → · ❚❚ pause</span>
   </div>
   <div class="foot-right">
@@ -353,6 +354,7 @@ function viewHTML(p){
 $('view-d').innerHTML=viewHTML('d');
 $('view-w').innerHTML=viewHTML('w');
 $('view-m').innerHTML=viewHTML('m');
+$('view-c').innerHTML=viewCompHTML();
 $('view-l').innerHTML=viewLoyaltyHTML();
 $('view-ld').innerHTML=viewLoyaltyDayHTML();
 
@@ -481,6 +483,83 @@ function renderView(p,d){
   renderPace(p+'-pace', p+'-pace-x', d.pace);
 }
 /* ===== LOYALTY (CourtPass) — 3rd screen ===== */
+/* ===== SALES COMPETITIONS — monthly brand challenges (same dash formatting) ===== */
+function viewCompHTML(){ return `
+  <div class="dash">
+    <div class="col-left">
+      <section class="panel">
+        <div class="ph"><h2>Time remaining</h2><span class="scope" id="cmp-period">—</span></div>
+        <div class="stat-wrap" style="justify-content:center;">
+          <div class="stat" style="align-items:center;text-align:center;">
+            <div class="num"><span id="cmp-d">--</span><span class="u">d</span> <span id="cmp-h">--</span><span class="u">h</span></div>
+            <div class="lbl">until month end</div>
+          </div>
+          <div class="divider"></div>
+          <div class="stat" style="align-items:center;text-align:center;">
+            <div class="num"><span id="cmp-m">--</span><span class="u">m</span> <span id="cmp-s">--</span><span class="u">s</span></div>
+            <div class="lbl" id="cmp-end">—</div>
+          </div>
+        </div>
+      </section>
+      <section class="panel">
+        <div class="ph"><h2>Brand totals</h2><span class="sub">this month · MTD</span></div>
+        <div class="stat-wrap" style="justify-content:center;">
+          <div class="stat"><div class="num" id="cmp-v-total">—</div><div class="lbl">Vouseti · <span id="cmp-v-units">—</span> units</div></div>
+          <div class="divider"></div>
+          <div class="stat"><div class="num" id="cmp-m-total">—</div><div class="lbl">Melin · <span id="cmp-m-units">—</span> units</div></div>
+        </div>
+      </section>
+    </div>
+    <section class="panel col-mid">
+      <div class="ph"><h2>Vouseti Challenge</h2><span class="sub">$ sold · ranked · top 10 · MTD</span></div>
+      <div class="slist" id="cmp-vouseti"></div>
+    </section>
+    <div class="col-right">
+      <section class="panel" style="flex:1 1 0;">
+        <div class="ph"><h2>Melin Challenge</h2><span class="sub">$ sold · ranked · top 10 · MTD</span></div>
+        <div class="slist" id="cmp-melin"></div>
+      </section>
+    </div>
+  </div>`; }
+function renderCompBoard(elId, rows){
+  const wrap=$(elId); if(!wrap)return; wrap.innerHTML='';
+  if(!rows || !rows.length){ wrap.innerHTML='<div class="sbar"><span class="sbar-name" style="color:var(--faint)">No sales yet this month</span></div>'; return; }
+  const compact=rows.length>12; wrap.classList.toggle('compact',compact);
+  const max=Math.max(...rows.map(r=>r.sales),1);
+  rows.forEach((r,i)=>{
+    const row=document.createElement('div'); row.className='sbar'+(i===0?' lead':'');
+    const head='<div class="sbar-top"><div class="sbar-nm"><span class="sbar-rk">'+(i+1)+'</span>'+
+      '<span class="sbar-name">'+r.name+(i===0?'<span class="crown">👑</span>':'')+'</span></div>';
+    const bar='<div class="sbar-bar"><div class="sbar-fl" style="--w:'+(r.sales/max).toFixed(4)+'"></div></div>';
+    row.innerHTML = compact
+      ? head+'<span class="sbar-val">'+money0(r.sales)+'<span class="sbar-u">'+fmt(r.units)+'u</span></span></div>'+bar
+      : head+'<span class="sbar-val">'+money0(r.sales)+'</span></div>'+bar+
+        '<div class="sbar-sub"><span><b>'+fmt(r.units)+'</b> units sold</span></div>';
+    wrap.appendChild(row);
+  });
+}
+function renderComp(c){
+  if(!c) return;
+  if($('cmp-period')) $('cmp-period').textContent=c.period||'—';
+  const find=k=>(c.boards||[]).find(b=>b.key===k)||{total:0,unitsTotal:0,rows:[]};
+  const v=find('vouseti'), m=find('melin');
+  $('cmp-v-total').textContent=money0(v.total); $('cmp-v-units').textContent=fmt(v.unitsTotal);
+  $('cmp-m-total').textContent=money0(m.total); $('cmp-m-units').textContent=fmt(m.unitsTotal);
+  renderCompBoard('cmp-vouseti', v.rows);
+  renderCompBoard('cmp-melin', m.rows);
+}
+/* live end-of-month countdown (Melbourne) — drives the Time-remaining panel */
+function _melNow(){ return new Date(new Date().toLocaleString('en-US',{timeZone:'Australia/Melbourne'})); }
+function tickComp(){
+  const now=_melNow(); const end=new Date(now.getFullYear(),now.getMonth()+1,1,0,0,0);
+  let s=Math.max(0,Math.floor((end-now)/1000));
+  const d=Math.floor(s/86400); s-=d*86400; const h=Math.floor(s/3600); s-=h*3600; const m=Math.floor(s/60); s-=m*60;
+  const p=x=>String(x).padStart(2,'0');
+  if($('cmp-d')) $('cmp-d').textContent=p(d); if($('cmp-h')) $('cmp-h').textContent=p(h);
+  if($('cmp-m')) $('cmp-m').textContent=p(m); if($('cmp-s')) $('cmp-s').textContent=p(s);
+  const ce=$('cmp-end'); if(ce){ const last=new Date(end.getTime()-1000); ce.textContent='ends '+new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Melbourne',day:'numeric',month:'short'}).format(last); }
+}
+setInterval(tickComp,1000); tickComp();
 function viewLoyaltyHTML(){ return `
   <div class="dash">
     <div class="col-left">
@@ -625,19 +704,21 @@ function renderLoyaltyDay(d){
 function syncViews(){
   const S=window.SALES_SEED||{};
   const hasMonth=!!(S.month && S.month.posOrders!=null);
+  const hasComp=!!(S.competitions && S.competitions.boards && S.competitions.boards.length);
   const hasLoy=!!(S.loyalty && S.loyalty.total);
   const hasLoyDay=!!(S.loyalty && S.loyalty.todayLeaderboard);
-  // order: Daily, Weekly, [Monthly], [CourtPass · Month], [CourtPass · Day]
-  const names=['Daily','Weekly']; if(hasMonth) names.push('Monthly'); if(hasLoy) names.push('CourtPass · Month'); if(hasLoyDay) names.push('CourtPass · Day');
+  // order: Daily, Weekly, [Monthly], [Competitions], [CourtPass · Month], [CourtPass · Day]
+  const names=['Daily','Weekly']; if(hasMonth) names.push('Monthly'); if(hasComp) names.push('Competitions'); if(hasLoy) names.push('CourtPass · Month'); if(hasLoyDay) names.push('CourtPass · Day');
   window._screenNames=names;
   const set=(id,show)=>{ const e=$(id); if(e) e.style.display=show?'flex':'none'; };
-  set('view-m',hasMonth); set('view-l',hasLoy); set('view-ld',hasLoyDay);
+  set('view-m',hasMonth); set('view-c',hasComp); set('view-l',hasLoy); set('view-ld',hasLoyDay);
   VIEW_COUNT = names.length;
   const t=$('track'); if(t) t.style.width=(VIEW_COUNT*100)+'%';
   document.querySelectorAll('#track > .view').forEach(v=>{ v.style.flex='0 0 '+(100/VIEW_COUNT)+'%'; v.style.width=(100/VIEW_COUNT)+'%'; });
   if($('nd-2')) $('nd-2').style.display = hasMonth?'':'none';
-  if($('nd-3')) $('nd-3').style.display = hasLoy?'':'none';
-  if($('nd-4')) $('nd-4').style.display = hasLoyDay?'':'none';
+  if($('nd-3')) $('nd-3').style.display = hasComp?'':'none';
+  if($('nd-4')) $('nd-4').style.display = hasLoy?'':'none';
+  if($('nd-5')) $('nd-5').style.display = hasLoyDay?'':'none';
   if(viewIdx>=VIEW_COUNT) viewIdx=0;
   showView(viewIdx);
 }
@@ -651,12 +732,13 @@ function renderAll(){
   const S=window.SALES_SEED; if(!S)return;
   renderView('d',S.day); renderView('w',S.week);
   if(S.month && S.month.posOrders!=null) renderView('m',S.month);
+  if(S.competitions && S.competitions.boards) renderComp(S.competitions);
   if(S.loyalty && S.loyalty.total) renderLoyalty(S.loyalty);
   if(S.loyalty && S.loyalty.todayLeaderboard) renderLoyaltyDay(S.loyalty);
   syncViews();
   // apply a #daily/#weekly/#monthly/#loyalty deep-link once, after the seed sets the real views
   if(!window._hashApplied){ window._hashApplied=true;
-    const map={'#daily':'Daily','#weekly':'Weekly','#monthly':'Monthly','#loyalty':'CourtPass · Month','#cpmonth':'CourtPass · Month','#cpday':'CourtPass · Day'};
+    const map={'#daily':'Daily','#weekly':'Weekly','#monthly':'Monthly','#competitions':'Competitions','#comp':'Competitions','#loyalty':'CourtPass · Month','#cpmonth':'CourtPass · Month','#cpday':'CourtPass · Day'};
     const want=map[location.hash], idx=(window._screenNames||[]).indexOf(want);
     if(want && idx>=0){ showView(idx); arm(ROTATE_MS,1); } }
   const a=$('asof'); if(a&&S.asOf) a.textContent=new Intl.DateTimeFormat('en-AU',{timeZone:'Australia/Melbourne',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).format(new Date(S.asOf));
@@ -677,7 +759,7 @@ const ROTATE_MS=15000; let VIEW_COUNT=2, viewIdx=0, rotateTimer=null, armAt=0, r
 function showView(i){
   viewIdx=((i%VIEW_COUNT)+VIEW_COUNT)%VIEW_COUNT;
   const t=$('track'); if(t) t.style.transform='translateX(-'+(viewIdx*(100/VIEW_COUNT))+'%)';
-  for(let k=0;k<5;k++){ const d=$('nd-'+k); if(d) d.classList.toggle('on',viewIdx===k); }
+  for(let k=0;k<6;k++){ const d=$('nd-'+k); if(d) d.classList.toggle('on',viewIdx===k); }
   setScreenTitle(viewIdx);
 }
 // drive the depleting countdown bar from `fromScale` (1=full) down to 0 over `ms`

@@ -106,6 +106,36 @@ function aggregate(posOrders, { paceMode, scope, sub, deltaLbl, salesTarget, pre
   };
 }
 
+/* ---------- monthly brand competitions (e.g. Vouseti & Melin) ----------
+   Per-staff $ + units for specific brand challenges, this month-to-date. Vendor is matched
+   case-insensitively by substring so "Melin", "MELIN BRAND", "Vouseti" etc. all count. Each comp
+   returns the top-10 staff by $ sold (ranking = dollars; units shown alongside). Built from the
+   heavy MONTH pull's line-item vendors, so it refreshes hourly and is reused between heavy runs. */
+const COMPS = [
+  { key: 'vouseti', brand: 'Vouseti', match: 'VOUSETI' },
+  { key: 'melin',   brand: 'Melin',   match: 'MELIN' },
+];
+function competitions(monthPos) {
+  return COMPS.map(c => {
+    const staff = {}; let total = 0, unitsTotal = 0;
+    for (const o of monthPos) {
+      const nm = o.staff;
+      for (const li of (o.lines || [])) {
+        if (!li.vendor || !li.vendor.toUpperCase().includes(c.match)) continue;
+        const amt = num(li.amount), qty = li.qty || 0;
+        total += amt; unitsTotal += qty;
+        if (!nm) continue;                                  // unattributed lines count to the brand total but not a staffer
+        (staff[nm] = staff[nm] || { name: nm, sales: 0, units: 0 });
+        staff[nm].sales += amt; staff[nm].units += qty;
+      }
+    }
+    const rows = Object.values(staff)
+      .map(s => ({ name: s.name, sales: +s.sales.toFixed(2), units: s.units }))
+      .sort((a, b) => b.sales - a.sales || b.units - a.units).slice(0, 10);
+    return { key: c.key, brand: c.brand, total: +total.toFixed(2), unitsTotal, rows };
+  });
+}
+
 /* ---------- loyalty (Okendo CourtPass) — native Shopify, no DB ----------
    Enrolled = customer segment metafields.app--1576377--loyalty.status='Enrolled'.
    Signup-date proxy = customer_added_date (Melbourne, shop tz). Employee = staff on the POS
@@ -235,7 +265,7 @@ async function main() {
       name: n.name, createdAt: n.createdAt, src: n.sourceName,
       sales: num(n.currentTotalPriceSet?.shopMoney?.amount), units: n.currentSubtotalLineItemsQuantity || 0,
       staff: pm ? pm.replace(/ processed this order.*/, '').trim() : null,
-      lines: (n.lineItems?.edges || []).map(e => ({ vendor: e.node.vendor, amount: e.node.discountedTotalSet?.shopMoney?.amount })),
+      lines: (n.lineItems?.edges || []).map(e => ({ vendor: e.node.vendor, qty: e.node.quantity || 0, amount: e.node.discountedTotalSet?.shopMoney?.amount })),
     };
   };
   const periodStartKey = doHeavy ? (monthStartKey < monKey ? monthStartKey : monKey) : monKey;
@@ -266,8 +296,9 @@ async function main() {
     deltaLbl: 'vs last week', salesTarget: CFG.WEEK_TARGET,
     prevSales: sum(lwPos), prevOrders: lwPos.length });
 
-  // MONTH (heavy) — refreshed hourly, reused from the previous seed otherwise
-  let month;
+  // MONTH (heavy) — refreshed hourly, reused from the previous seed otherwise.
+  // The brand COMPETITIONS leaderboards are derived from the same monthly line-item pull.
+  let month, comps;
   if (doHeavy) {
     const monthPos = periodPos.filter(o => melDayKey(o.createdAt) >= monthStartKey);
     const lmAll = await pageOrders(
@@ -278,7 +309,8 @@ async function main() {
       paceMode: 'monthly', scope: `${monthName} ${p.year}`, sub: `this month · 1–${+p.day} ${monthAbbr}`,
       deltaLbl: 'vs last month', salesTarget: monthlyTarget,
       prevSales: sum(lmPos), prevOrders: lmPos.length });
-  } else { month = prevSeed.month; }
+    comps = { period: `${monthName} ${p.year}`, monthEndKey: `${p.year}-${p.month}-${String(dim).padStart(2,'0')}`, boards: competitions(monthPos) };
+  } else { month = prevSeed.month; comps = prevSeed.competitions; }
 
   // stamp asOf in Melbourne local time (DST-safe), then write the seed
   const fo = {}; for (const x of new Intl.DateTimeFormat('en-GB', { timeZone: TZ, year:'numeric', month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit', hourCycle:'h23' }).formatToParts(now)) fo[x.type] = x.value;
@@ -294,9 +326,9 @@ async function main() {
   try { const ld = await loyaltyDaily({ todayKey }); if (ld) loy = Object.assign({}, loy || {}, ld); }
   catch (e) { console.error('loyalty-daily skipped (' + e.message.slice(0, 80) + ')'); }
 
-  const seed = { asOf, day, week, month: month || null, loyalty: loy };
+  const seed = { asOf, day, week, month: month || null, competitions: comps || null, loyalty: loy };
   const header = '/* sales-seed.js — DATA ONLY. Refreshed by GitHub Actions (cloud sync). Real Shopify POS data. */\n';
   fs.writeFileSync(SEED_PATH, header + 'window.SALES_SEED = ' + JSON.stringify(seed) + ';\n');
-  console.log(`sales-fetch OK ${doHeavy ? '[heavy]' : '[light]'}  today ${day.scope}: $${day.totalSales}/${day.posOrders}o  week $${week.totalSales}/${week.posOrders}o  month ${month ? '$' + month.totalSales + '/' + month.posOrders + 'o' : '—'}  loyalty ${loy ? loy.total + 'm/' + loy.thisMonth + 'mo' : '—'}  asOf ${asOf}`);
+  console.log(`sales-fetch OK ${doHeavy ? '[heavy]' : '[light]'}  today ${day.scope}: $${day.totalSales}/${day.posOrders}o  week $${week.totalSales}/${week.posOrders}o  month ${month ? '$' + month.totalSales + '/' + month.posOrders + 'o' : '—'}  comps ${comps ? comps.boards.map(b => b.brand + ' $' + b.total).join(' / ') : '—'}  loyalty ${loy ? loy.total + 'm/' + loy.thisMonth + 'mo' : '—'}  asOf ${asOf}`);
 }
 main().catch(e => { console.error('sales-fetch FAILED: ' + e.message); process.exit(1); });
