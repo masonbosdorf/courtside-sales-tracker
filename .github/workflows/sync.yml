@@ -32,6 +32,19 @@ jobs:
           FS_SHOPIFY_CLIENT_SECRET: ${{ secrets.FS_SHOPIFY_CLIENT_SECRET }}
         run: node sales-fetch.js "$GITHUB_WORKSPACE/sales-seed.js"
 
+      - name: Replen fetch (POS items sold + NetSuite bins → sales-seed.js)
+        continue-on-error: true        # NetSuite hiccup must never block the sales-seed publish
+        env:
+          FS_SHOPIFY_DOMAIN:        ${{ secrets.FS_SHOPIFY_DOMAIN }}
+          FS_SHOPIFY_CLIENT_ID:     ${{ secrets.FS_SHOPIFY_CLIENT_ID }}
+          FS_SHOPIFY_CLIENT_SECRET: ${{ secrets.FS_SHOPIFY_CLIENT_SECRET }}
+          FS_ACCOUNT:         ${{ secrets.FS_ACCOUNT }}
+          FS_CONSUMER_KEY:    ${{ secrets.FS_CONSUMER_KEY }}
+          FS_CONSUMER_SECRET: ${{ secrets.FS_CONSUMER_SECRET }}
+          FS_TOKEN_ID:        ${{ secrets.FS_TOKEN_ID }}
+          FS_TOKEN_SECRET:    ${{ secrets.FS_TOKEN_SECRET }}
+        run: node netsuite-replen.js "$GITHUB_WORKSPACE/sales-seed.js"
+
       - name: Commit & push if the data changed
         run: |
           git config user.name  "sales-bot"
