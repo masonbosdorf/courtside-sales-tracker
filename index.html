@@ -285,8 +285,11 @@ body{
 .rep-stat{text-align:right;display:flex;align-items:baseline;gap:clamp(8px,0.9cqw,14px);flex:0 0 auto;}
 .rep-statn{font-family:"Archivo Black",sans-serif;font-size:clamp(30px,3.6cqw,66px);line-height:0.9;letter-spacing:-0.03em;color:var(--up);}
 .rep-statl{font-size:clamp(10px,0.85cqw,15px);letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);max-width:9ch;text-align:right;}
-.rep-list{flex:1;min-height:0;display:flex;flex-direction:column;gap:clamp(5px,0.65cqh,10px);overflow:hidden;}
-.rep-row{flex:1;min-height:0;display:grid;grid-template-columns:1fr clamp(58px,5cqw,90px) clamp(150px,14cqw,250px) clamp(86px,8cqw,140px) clamp(94px,9cqw,150px);gap:clamp(10px,1.2cqw,22px);align-items:center;background:var(--panel);border:1px solid var(--line);border-left:clamp(3px,0.3cqw,5px) solid var(--ac);border-radius:clamp(8px,0.8cqw,14px);padding:clamp(6px,0.7cqh,12px) clamp(12px,1.3cqw,22px);}
+.rep-list{flex:1;min-height:0;display:flex;flex-direction:column;gap:clamp(6px,0.75cqh,13px);overflow-y:auto;overflow-x:hidden;touch-action:pan-y;padding-right:clamp(4px,0.4cqw,9px);}
+.rep-list::-webkit-scrollbar{width:clamp(6px,0.5cqw,9px);} .rep-list::-webkit-scrollbar-track{background:transparent;}
+.rep-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.18);border-radius:6px;} .rep-list::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.3);}
+/* fixed row height tuned so ~5 fill the pane; the rest scroll */
+.rep-row{flex:0 0 auto;height:clamp(108px,12.4cqh,150px);display:grid;grid-template-columns:1fr clamp(58px,5cqw,90px) clamp(150px,14cqw,250px) clamp(86px,8cqw,140px) clamp(94px,9cqw,150px);gap:clamp(10px,1.2cqw,22px);align-items:center;background:var(--panel);border:1px solid var(--line);border-left:clamp(3px,0.3cqw,5px) solid var(--ac);border-radius:clamp(8px,0.8cqw,14px);padding:clamp(6px,0.7cqh,12px) clamp(12px,1.3cqw,22px);}
 .rep-it{display:flex;align-items:center;gap:clamp(9px,1cqw,16px);min-width:0;}
 .rep-dot{flex:0 0 auto;width:clamp(30px,2.6cqw,46px);height:clamp(30px,2.6cqw,46px);border-radius:clamp(7px,0.6cqw,11px);display:flex;align-items:center;justify-content:center;font-family:"Archivo Black",sans-serif;font-size:clamp(11px,0.95cqw,17px);color:#0c0c0c;}
 .rep-tx{min-width:0;display:flex;flex-direction:column;}
@@ -788,10 +791,10 @@ function repSize(sku){const seg=(String(sku).split('-').pop()||'');if(/^(XS|S|M|
 window._repDone=window._repDone||new Set();
 function renderReplen(list){
   const el=$('view-rep'); if(!el)return;
-  const active=(list||[]).filter(it=>!window._repDone.has(it.sku+'|'+it.at)).sort((a,b)=>new Date(a.at)-new Date(b.at));
-  const CAP=13, shown=active.slice(0,CAP), more=active.length-shown.length;
+  const active=(list||[]).filter(it=>!window._repDone.has(it.sku+'|'+it.at))
+    .sort((a,b)=>new Date(a.at)-new Date(b.at));   // oldest sale on top
   const units=active.reduce((a,i)=>a+(i.units||0),0);
-  const rows=shown.map(it=>{
+  const rows=active.map(it=>{
     const br=repBrand(it.brand), ms=new Date(it.at).getTime(), sz=repSize(it.sku), nm=(it.name||'').replace(/\s+/g,' ').trim();
     const bin=it.bin?('<span class="rep-binlab">📍 pull bin</span><span class="rep-bin">'+it.bin+'</span>')
                     :('<span class="rep-binlab warn">⚠ check o/s</span><span class="rep-bin nostock">—</span>');
@@ -804,8 +807,8 @@ function renderReplen(list){
   el.innerHTML='<div class="rep-pane"><div class="rep-head"><div><div class="rep-h1">Items Sold</div>'+
     '<div class="rep-h2">Floor replenishment · pull from the highest on-hand warehouse bin</div></div>'+
     '<div class="rep-stat"><span class="rep-statn">'+active.length+'</span><span class="rep-statl">to replen · '+units+'u</span></div></div>'+
-    '<div class="rep-list">'+(shown.length?rows:'<div class="rep-empty">All caught up ✓</div>')+'</div>'+
-    (more>0?'<div class="rep-more">+ '+more+' more in queue</div>':'')+'</div>';
+    '<div class="rep-list no-tap">'+(active.length?rows:'<div class="rep-empty">All caught up ✓</div>')+'</div>'+
+    (active.length>5?'<div class="rep-more">⌄ '+active.length+' total · scroll for the rest</div>':'')+'</div>';
 }
 { const rv=$('view-rep'); if(rv) rv.addEventListener('click', e=>{ const b=e.target.closest('[data-done]'); if(b){ e.stopPropagation(); window._repDone.add(b.getAttribute('data-done')); const S=window.SALES_SEED; if(S) renderReplen(S.replen||[]); } }); }
 function syncViews(){
