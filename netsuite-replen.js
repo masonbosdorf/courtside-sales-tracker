@@ -16,6 +16,9 @@ const melOffset = d => (new Intl.DateTimeFormat('en-US', { timeZone: TZ, timeZon
   .formatToParts(d).find(x => x.type === 'timeZoneName').value.replace('GMT', '') || '+10:00');
 const todayKey = new Intl.DateTimeFormat('en-CA', { timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
 
+// gift cards / vouchers ring through POS but aren't replenable items — blacklist them
+const isGiftCard = (sku, name) => /gift\s*card|e-?gift|voucher/i.test(name || '') || /^GC\d/i.test(sku || '');
+
 async function gql(q, vars) {
   for (let i = 0; i < 6; i++) {
     try { return await graphql(q, vars); }
@@ -42,6 +45,7 @@ async function main() {
   const agg = new Map();
   for (const o of orders) for (const li of (o.lineItems.nodes || [])) {
     if (!li.sku) continue;
+    if (isGiftCard(li.sku, li.name)) continue;   // skip gift cards / vouchers — not replenable
     if (!agg.has(li.sku)) agg.set(li.sku, { sku: li.sku, units: 0, name: li.name || '', at: o.createdAt });
     const a = agg.get(li.sku);
     a.units += li.quantity || 0;
