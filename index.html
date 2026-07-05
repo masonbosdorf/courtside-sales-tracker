@@ -277,38 +277,6 @@ body{
 .clock .secs{font-size:0.6em;color:var(--faint);}
 .tz{font-size:clamp(8px,0.6cqw,10px);letter-spacing:0.2em;text-transform:uppercase;color:var(--faint);}
 .mock-tag{position:fixed;bottom:8px;left:50%;transform:translateX(-50%);z-index:80;font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:rgba(255,255,255,0.28);pointer-events:none;}
-/* ===== Items Sold — floor replenishment pane ===== */
-.rep-pane{flex:1;min-height:0;display:flex;flex-direction:column;padding:clamp(14px,1.6cqw,28px) clamp(16px,1.8cqw,32px) clamp(10px,1.1cqw,18px);}
-.rep-head{flex:0 0 auto;display:flex;justify-content:space-between;align-items:flex-end;gap:clamp(16px,2cqw,40px);border-bottom:1px solid var(--line);padding-bottom:clamp(8px,1cqh,16px);margin-bottom:clamp(8px,1cqh,16px);}
-.rep-h1{font-family:"Archivo Black",sans-serif;font-size:clamp(22px,2.6cqw,48px);letter-spacing:-0.02em;line-height:1;}
-.rep-h2{font-size:clamp(10px,0.82cqw,15px);letter-spacing:0.04em;color:var(--muted);margin-top:clamp(5px,0.7cqh,10px);}
-.rep-stat{text-align:right;display:flex;align-items:baseline;gap:clamp(8px,0.9cqw,14px);flex:0 0 auto;}
-.rep-statn{font-family:"Archivo Black",sans-serif;font-size:clamp(30px,3.6cqw,66px);line-height:0.9;letter-spacing:-0.03em;color:var(--up);}
-.rep-statl{font-size:clamp(10px,0.85cqw,15px);letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);max-width:9ch;text-align:right;}
-.rep-list{flex:1;min-height:0;display:flex;flex-direction:column;gap:clamp(6px,0.75cqh,13px);overflow-y:auto;overflow-x:hidden;touch-action:pan-y;padding-right:clamp(4px,0.4cqw,9px);}
-.rep-list::-webkit-scrollbar{width:clamp(6px,0.5cqw,9px);} .rep-list::-webkit-scrollbar-track{background:transparent;}
-.rep-list::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.18);border-radius:6px;} .rep-list::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.3);}
-/* fixed row height tuned so ~5 fill the pane; the rest scroll */
-.rep-row{flex:0 0 auto;height:clamp(108px,12.4cqh,150px);display:grid;grid-template-columns:1fr clamp(58px,5cqw,90px) clamp(150px,14cqw,250px) clamp(86px,8cqw,140px) clamp(94px,9cqw,150px);gap:clamp(10px,1.2cqw,22px);align-items:center;background:var(--panel);border:1px solid var(--line);border-left:clamp(3px,0.3cqw,5px) solid var(--ac);border-radius:clamp(8px,0.8cqw,14px);padding:clamp(6px,0.7cqh,12px) clamp(12px,1.3cqw,22px);}
-.rep-it{display:flex;align-items:center;gap:clamp(9px,1cqw,16px);min-width:0;}
-.rep-dot{flex:0 0 auto;width:clamp(30px,2.6cqw,46px);height:clamp(30px,2.6cqw,46px);border-radius:clamp(7px,0.6cqw,11px);display:flex;align-items:center;justify-content:center;font-family:"Archivo Black",sans-serif;font-size:clamp(11px,0.95cqw,17px);color:#0c0c0c;}
-.rep-tx{min-width:0;display:flex;flex-direction:column;}
-.rep-sku{font-weight:700;font-size:clamp(14px,1.25cqw,23px);font-variant-numeric:tabular-nums;}
-.rep-nm{font-size:clamp(11px,0.92cqw,16px);color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.rep-qty{text-align:center;font-family:"Archivo Black",sans-serif;font-size:clamp(20px,1.9cqw,36px);letter-spacing:-0.02em;}
-.rep-qty small{font-size:clamp(10px,0.7cqw,13px);color:var(--faint);font-family:"Space Grotesk";font-weight:600;}
-.rep-binwrap{display:flex;flex-direction:column;align-items:center;gap:clamp(2px,0.3cqh,4px);}
-.rep-binlab{font-size:clamp(8px,0.62cqw,11px);letter-spacing:0.1em;text-transform:uppercase;color:var(--faint);}
-.rep-binlab.warn{color:var(--bad);}
-.rep-bin{font-weight:700;font-size:clamp(15px,1.45cqw,26px);letter-spacing:0.02em;font-variant-numeric:tabular-nums;background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:clamp(6px,0.5cqw,9px);padding:clamp(4px,0.45cqh,8px) clamp(9px,0.9cqw,16px);}
-.rep-bin.nostock{color:var(--bad);border-color:rgba(255,82,82,0.4);background:rgba(255,82,82,0.08);}
-.rep-time{text-align:center;font-family:"Archivo Black",sans-serif;font-size:clamp(16px,1.5cqw,28px);letter-spacing:-0.02em;font-variant-numeric:tabular-nums;display:flex;flex-direction:column;align-items:center;}
-.rep-time small{font-size:clamp(8px,0.6cqw,11px);color:var(--faint);font-family:"Space Grotesk";letter-spacing:0.1em;text-transform:uppercase;font-weight:600;}
-.u-fresh{color:var(--up);} .u-mid{color:var(--signal);} .u-warn{color:var(--gold);} .u-crit{color:var(--bad);}
-.rep-done{font-family:"Space Grotesk";font-weight:700;font-size:clamp(12px,1.05cqw,19px);color:var(--up);background:rgba(70,224,138,0.1);border:1px solid rgba(70,224,138,0.4);border-radius:clamp(7px,0.7cqw,11px);padding:clamp(7px,0.8cqh,14px) clamp(10px,1cqw,18px);cursor:pointer;white-space:nowrap;}
-.rep-done:hover{background:rgba(70,224,138,0.2);}
-.rep-more{flex:0 0 auto;text-align:center;font-size:clamp(10px,0.85cqw,15px);color:var(--faint);padding-top:clamp(6px,0.8cqh,12px);}
-.rep-empty{flex:1;display:flex;align-items:center;justify-content:center;font-family:"Archivo Black",sans-serif;font-size:clamp(20px,2cqw,38px);color:var(--up);}
 </style>
 </head>
 <body>
@@ -322,7 +290,6 @@ body{
   <section class="view" id="view-c" style="display:none;"></section>
   <section class="view" id="view-l" style="display:none;"></section>
   <section class="view" id="view-ld" style="display:none;"></section>
-  <section class="view" id="view-rep" style="display:none;"></section>
 </div></div>
 
 <!-- ===== FOOTER ===== -->
@@ -337,7 +304,7 @@ body{
   </div>
   <div class="foot-mid">
     <button id="pause-btn" class="no-tap pause-btn" aria-label="Pause auto-scroll" title="Pause / resume auto-scroll">❚❚</button>
-    <div class="dot-nav"><span class="nav-dot on" id="nd-0"></span><span class="nav-dot" id="nd-1"></span><span class="nav-dot" id="nd-2"></span><span class="nav-dot" id="nd-3" style="display:none"></span><span class="nav-dot" id="nd-4" style="display:none"></span><span class="nav-dot" id="nd-5" style="display:none"></span><span class="nav-dot" id="nd-6" style="display:none"></span></div>
+    <div class="dot-nav"><span class="nav-dot on" id="nd-0"></span><span class="nav-dot" id="nd-1"></span><span class="nav-dot" id="nd-2"></span><span class="nav-dot" id="nd-3" style="display:none"></span><span class="nav-dot" id="nd-4" style="display:none"></span><span class="nav-dot" id="nd-5" style="display:none"></span></div>
     <span class="hint">tap / ← → · ❚❚ pause · logo = menu</span>
   </div>
   <div class="foot-right">
@@ -782,47 +749,17 @@ function renderLoyaltyDay(d){
   renderLeaders('lod-leaders', d.todayLeaderboard||[]);
   renderTrend('lod-trend','lod-trend-x', last7);
 }
-/* ===== Items Sold — floor replenishment pane (from SALES_SEED.replen) ===== */
-const REP_BRANDS={NIKE:['NK','#f5f5f5'],JORDAN:['JD','#e0524d'],ADIDAS:['AD','#6c8cff'],'NEW BALANCE':['NB','#c8102e'],'WAY OF WADE':['WW','#ffb43d'],'LI-NING':['LN','#ff6b3d'],GLOBETROTTERS:['GT','#4a8fe0'],'FRANK GREEN':['FG','#46e08a'],VOUSETI:['VO','#b46ef0'],'NEW ERA':['NE','#9aa0aa'],'MITCHELL & NESS':['MN','#ffd66b'],'UNDER ARMOUR':['UA','#bdbdbd'],ASICS:['AS','#3fb6ff'],PUMA:['PM','#d8e23a'],RYOKO:['RY','#7fd4ff'],'RYOKO RAIN':['RY','#7fd4ff']};
-function repBrand(b){const u=(b||'').toUpperCase();return REP_BRANDS[u]||[(u.replace(/[^A-Z]/g,'').slice(0,2)||'••'),'#8a8a90'];}
-function repFmtAgo(ms){const m=Math.max(0,Math.floor((Date.now()-ms)/60000));return m<60?m+'m':Math.floor(m/60)+'h '+(m%60)+'m';}
-function repUrg(ms){const m=(Date.now()-ms)/60000;return m<10?'u-fresh':m<30?'u-mid':m<60?'u-warn':'u-crit';}
-function repSize(sku){const seg=(String(sku).split('-').pop()||'');if(/^(XS|S|M|L|XL|XXL|2XL|3XL|4XL|OS)$/i.test(seg))return seg.toUpperCase();if(/^\d{1,2}(\.\d)?$/.test(seg))return 'US '+seg;if(seg.length<=4&&seg!==sku)return seg;return '';}
-window._repDone=window._repDone||new Set();
-function renderReplen(list){
-  const el=$('view-rep'); if(!el)return;
-  const active=(list||[]).filter(it=>!window._repDone.has(it.sku+'|'+it.at))
-    .sort((a,b)=>new Date(a.at)-new Date(b.at));   // oldest sale on top
-  const units=active.reduce((a,i)=>a+(i.units||0),0);
-  const rows=active.map(it=>{
-    const br=repBrand(it.brand), ms=new Date(it.at).getTime(), sz=repSize(it.sku), nm=(it.name||'').replace(/\s+/g,' ').trim();
-    const bin=it.bin?('<span class="rep-binlab">📍 pull bin</span><span class="rep-bin">'+it.bin+'</span>')
-                    :('<span class="rep-binlab warn">⚠ check o/s</span><span class="rep-bin nostock">—</span>');
-    return '<div class="rep-row" style="--ac:'+br[1]+'"><div class="rep-it"><span class="rep-dot" style="background:'+br[1]+'">'+br[0]+'</span>'+
-      '<span class="rep-tx"><span class="rep-sku">'+it.sku+'</span><span class="rep-nm">'+nm+(sz?' · '+sz:'')+'</span></span></div>'+
-      '<span class="rep-qty">'+it.units+'<small>u</small></span><span class="rep-binwrap">'+bin+'</span>'+
-      '<span class="rep-time '+repUrg(ms)+'">'+repFmtAgo(ms)+'<small>ago</small></span>'+
-      '<button class="rep-done no-tap" data-done="'+it.sku+'|'+it.at+'">✓ Done</button></div>';
-  }).join('');
-  el.innerHTML='<div class="rep-pane"><div class="rep-head"><div><div class="rep-h1">Items Sold</div>'+
-    '<div class="rep-h2">Floor replenishment · pull from the highest on-hand warehouse bin</div></div>'+
-    '<div class="rep-stat"><span class="rep-statn">'+active.length+'</span><span class="rep-statl">to replen · '+units+'u</span></div></div>'+
-    '<div class="rep-list no-tap">'+(active.length?rows:'<div class="rep-empty">All caught up ✓</div>')+'</div>'+
-    (active.length>5?'<div class="rep-more">⌄ '+active.length+' total · scroll for the rest</div>':'')+'</div>';
-}
-{ const rv=$('view-rep'); if(rv) rv.addEventListener('click', e=>{ const b=e.target.closest('[data-done]'); if(b){ e.stopPropagation(); window._repDone.add(b.getAttribute('data-done')); const S=window.SALES_SEED; if(S) renderReplen(S.replen||[]); } }); }
 function syncViews(){
   const S=window.SALES_SEED||{};
   const hasMonth=!!(S.month && S.month.posOrders!=null);
   const hasComp=!!(S.competitions && S.competitions.boards && S.competitions.boards.length);
   const hasLoy=!!(S.loyalty && S.loyalty.total);
   const hasLoyDay=!!(S.loyalty && S.loyalty.todayLeaderboard);
-  const hasReplen=!!(S.replen && S.replen.length);
-  // order: Daily, Weekly, [Monthly], [Competitions], [CourtPass · Month], [CourtPass · Day], [Items Sold]
-  const names=['Daily','Weekly']; if(hasMonth) names.push('Monthly'); if(hasComp) names.push('Competitions'); if(hasLoy) names.push('CourtPass · Month'); if(hasLoyDay) names.push('CourtPass · Day'); if(hasReplen) names.push('Items Sold');
+  // order: Daily, Weekly, [Monthly], [Competitions], [CourtPass · Month], [CourtPass · Day]
+  const names=['Daily','Weekly']; if(hasMonth) names.push('Monthly'); if(hasComp) names.push('Competitions'); if(hasLoy) names.push('CourtPass · Month'); if(hasLoyDay) names.push('CourtPass · Day');
   window._screenNames=names;
   const set=(id,show)=>{ const e=$(id); if(e) e.style.display=show?'flex':'none'; };
-  set('view-m',hasMonth); set('view-c',hasComp); set('view-l',hasLoy); set('view-ld',hasLoyDay); set('view-rep',hasReplen);
+  set('view-m',hasMonth); set('view-c',hasComp); set('view-l',hasLoy); set('view-ld',hasLoyDay);
   VIEW_COUNT = names.length;
   const t=$('track'); if(t) t.style.width=(VIEW_COUNT*100)+'%';
   document.querySelectorAll('#track > .view').forEach(v=>{ v.style.flex='0 0 '+(100/VIEW_COUNT)+'%'; v.style.width=(100/VIEW_COUNT)+'%'; });
@@ -830,7 +767,6 @@ function syncViews(){
   if($('nd-3')) $('nd-3').style.display = hasComp?'':'none';
   if($('nd-4')) $('nd-4').style.display = hasLoy?'':'none';
   if($('nd-5')) $('nd-5').style.display = hasLoyDay?'':'none';
-  if($('nd-6')) $('nd-6').style.display = hasReplen?'':'none';
   if(viewIdx>=VIEW_COUNT) viewIdx=0;
   showView(viewIdx);
 }
@@ -847,7 +783,6 @@ function renderAll(){
   if(S.competitions && S.competitions.boards) renderComp(S.competitions);
   if(S.loyalty && S.loyalty.total) renderLoyalty(S.loyalty);
   if(S.loyalty && S.loyalty.todayLeaderboard) renderLoyaltyDay(S.loyalty);
-  if(S.replen && S.replen.length) renderReplen(S.replen);
   syncViews();
   // apply a #daily/#weekly/#monthly/#loyalty deep-link once, after the seed sets the real views
   if(!window._hashApplied){ window._hashApplied=true;
