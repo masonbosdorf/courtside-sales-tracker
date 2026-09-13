@@ -13,11 +13,12 @@ permissions:
 
 concurrency:
   group: sales-sync            # never overlap runs
-  cancel-in-progress: false
+  cancel-in-progress: true     # a stuck/zombie run must never block the group — the next dispatch replaces it (17h stall on 2026-09-13)
 
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 12          # runs take ~1–3 min; anything longer is hung
     steps:
       - uses: actions/checkout@v4
 
